@@ -1,0 +1,14 @@
+{
+  "name": "rent-a-buddy",
+  "version": "1.0.0",
+  "description": "Just to rent a buddy!",
+  "scripts": {
+    "start:backend": "cd backend && npx nodemon src/app.js",
+    "start:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run start:backend\" \"npm run start:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0",
+    "nodemon": "^2.0.20"
+  }
+}
