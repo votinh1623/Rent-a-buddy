@@ -3,20 +3,29 @@ import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
 import cors from "cors";
-import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
-import path from "path";
 import config from "./config/server.config.js";
+import database from "./lib/database.js";
+import authRoutes from "./routes/auth.route.js";
+import { createServer } from "http";
+import { Server } from "socket.io";
 const app = express();
 
-// console.log('Environment variables loaded:');
-// console.log('ACCESS_TOKEN_SECRET:', process.env.ACCESS_TOKEN_SECRET ? '***SET***' : '***NOT SET***');
-// console.log('REFRESH_TOKEN_SECRET:', process.env.REFRESH_TOKEN_SECRET ? '***SET***' : '***NOT SET***');
-// console.log('Mongo: ', process.env.MONGO_URI);
-// database.connectMongo();
-// console.log("Redis URL:", process.env.REDIS_URL);
-// database.connectRedis();
+console.log('Environment variables loaded:');
+console.log('ACCESS_TOKEN_SECRET:', process.env.ACCESS_TOKEN_SECRET ? '***SET***' : '***NOT SET***');
+console.log('REFRESH_TOKEN_SECRET:', process.env.REFRESH_TOKEN_SECRET ? '***SET***' : '***NOT SET***');
+console.log('Mongo: ', process.env.MONGO_URI);
+database.connectMongo();
+console.log("Redis URL:", process.env.REDIS_URL);
+database.connectRedis();
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+}));
 
 // Configure Cloudinary
 // cloudinary.config({
@@ -26,7 +35,7 @@ const app = express();
 // });
 
 // Routes
-// app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
