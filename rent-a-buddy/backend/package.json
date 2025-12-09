@@ -4,6 +4,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "update-user-model": "node src/scripts/updateUserModel.js",
+    "seed-activities": "node src/scripts/seedActivities.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

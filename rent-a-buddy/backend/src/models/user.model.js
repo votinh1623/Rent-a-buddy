@@ -40,14 +40,11 @@ const userSchema = new mongoose.Schema({
     enum: ['Male', 'Female', 'Other', ''],
     default: ''
   },
-//   followers: [{
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: 'User'
-//   }],
-//   following: [{
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: 'User'
-//   }],
+  // Trường mới: chỉ áp dụng cho tour-guide
+  relatedActivities: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Activity'
+  }],
   lastOnline: {
     type: Date,
     default: Date.now
@@ -55,11 +52,7 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  },
-//   favorites: [{
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: 'Story'
-//   }]
+  }
 }, {
   timestamps: true
 });

@@ -37,3 +37,13 @@ export const adminAuth = (req, res, next) => {
     next();
   });
 };
+export const guideAuth = (req, res, next) => {
+  auth(req, res, () => {
+    if (req.user.role !== 'tour-guide') {
+      return res.status(403).json({ 
+        message: 'Access denied. Tour guide privileges required.' 
+      });
+    }
+    next();
+  });
+};
