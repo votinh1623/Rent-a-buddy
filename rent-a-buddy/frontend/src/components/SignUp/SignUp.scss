@@ -1,0 +1,233 @@
+:root {
+  --primary-color: #a663cc;
+  --secondary-color: #a6c1ee;
+  --gradient-primary: linear-gradient(120deg, var(--primary-color), var(--secondary-color));
+  --gradient-hover: linear-gradient(120deg, var(--secondary-color), #fbc2eb);
+  --text-color-dark: #333;
+  --text-color-light: #666;
+  --background-light: #fff;
+  --border-color: #e0e0e0;
+  --border-radius-md: 12px;
+  --border-radius-lg: 20px;
+  --shadow-main: 0 10px 30px rgba(0, 0, 0, 0.1);
+  --shadow-hover: 0 15px 35px rgba(166, 193, 238, 0.4);
+}
+
+.signup-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-primary);
+  font-family: 'Poppins', sans-serif;
+  padding: 20px;
+
+  /* ---- Card Đăng Ký ---- */
+  .signup-card {
+    background: var(--background-light);
+    padding: 2.5rem;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-main);
+    width: 100%;
+    max-width: 420px;
+    animation: fadeInUp 0.7s ease-out forwards;
+    transform: translateY(30px);
+    opacity: 0;
+
+    h2 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem; // Tạo khoảng cách đều giữa các item
+    }
+
+    .form-group {
+      width: 100%;
+
+      label {
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-color-light);
+        margin-bottom: 0.5rem;
+        transition: color 0.3s ease;
+      }
+
+      input {
+        width: 100%;
+        padding: 14px 16px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius-md);
+        font-size: 1rem;
+        color: var(--text-color-dark);
+        transition: all 0.3s ease;
+        background-color: #a6c1ee;
+
+        &:focus {
+          border-color: var(--primary-color);
+          box-shadow: 0 0 0 3px rgba(166, 99, 204, 0.2);
+          outline: none;
+
+          +label,
+          &:not(:placeholder-shown)+label {
+            color: var(--primary-color);
+          }
+        }
+      }
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      padding: 16px;
+      border-radius: var(--border-radius-md);
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      background: var(--gradient-primary);
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(166, 193, 238, 0.3);
+      margin-top: 1rem;
+
+      &:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-hover);
+        background: var(--gradient-hover);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+
+    .extra-links {
+      margin-top: 1.5rem;
+      text-align: center;
+      font-size: 0.95rem;
+      color: var(--text-color-light);
+
+      .signin-link {
+        color: var(--primary-color);
+        font-weight: 600;
+        text-decoration: none;
+        position: relative;
+
+        &::after {
+          content: "";
+          position: absolute;
+          left: 0;
+          bottom: -3px;
+          width: 0;
+          height: 2px;
+          background: var(--primary-color);
+          transition: width 0.3s ease;
+        }
+
+        &:hover::after {
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  .ant-modal-content {
+    border-radius: var(--border-radius-lg) !important;
+    overflow: hidden;
+    box-shadow: var(--shadow-main);
+    animation: fadeInScale 0.4s ease;
+
+    .ant-modal-header {
+      border-bottom: none;
+      background: var(--gradient-primary);
+      text-align: center;
+      padding: 1.5rem;
+
+      .ant-modal-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: white;
+      }
+    }
+
+    .ant-modal-body {
+      padding: 2rem;
+      text-align: center;
+
+      p {
+        font-size: 1rem;
+        color: var(--text-color-light);
+        margin-bottom: 1.5rem;
+      }
+
+      .ant-input {
+        border-radius: var(--border-radius-md);
+        font-size: 1.2rem;
+        letter-spacing: 4px;
+        padding: 12px;
+        border: 2px solid var(--border-color);
+        transition: all 0.3s ease;
+        text-align: center;
+
+        &:focus {
+          border-color: var(--primary-color);
+          box-shadow: 0 0 0 3px rgba(166, 99, 204, 0.2);
+        }
+      }
+    }
+
+    .ant-modal-footer {
+      border-top: none;
+      padding: 0 2rem 2rem;
+      text-align: right;
+
+      .ant-btn {
+        border-radius: var(--border-radius-md);
+        font-weight: 600;
+        padding: 10px 24px;
+        height: auto;
+        transition: all 0.3s ease;
+      }
+
+      .ant-btn-primary {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+
+        &:hover {
+          background: #b072d9;
+          border-color: #b072d9;
+          transform: translateY(-2px);
+        }
+      }
+    }
+  }
+}
+
+@keyframes fadeInUp {
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
