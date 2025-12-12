@@ -17,7 +17,7 @@ const destinationSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    default: 'Vietnam'
+    default: 'Da Nang'
   },
   country: {
     type: String,

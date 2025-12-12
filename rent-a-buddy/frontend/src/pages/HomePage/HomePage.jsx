@@ -4,6 +4,7 @@ import './Homepage.scss'
 import { useNavigate, NavLink } from "react-router-dom";
 import { logout } from '../../service/authService';
 import { toast } from 'react-toastify';
+import SelectByPreference from '../../components/SelectByPreference/SelectByPreference.jsx';
 
 function HomePage() {
   const [currentBuddy, setCurrentBuddy] = useState(0);
@@ -17,15 +18,15 @@ function HomePage() {
       const accessToken = document.cookie
         .split('; ')
         .find(row => row.startsWith('accessToken='));
-      
+
       // Hoặc kiểm localStorage nếu bạn lưu ở đó
       // const token = localStorage.getItem('accessToken');
-      
+
       setIsLoggedIn(!!accessToken);
     };
 
     checkLoginStatus();
-    
+
     // Có thể thêm event listener để theo dõi thay đổi
     window.addEventListener('storage', checkLoginStatus);
     return () => window.removeEventListener('storage', checkLoginStatus);
@@ -38,15 +39,15 @@ function HomePage() {
         // Xóa cookies
         document.cookie = "accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         document.cookie = "refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        
+
         // Xóa localStorage nếu có
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        
+
         // Cập nhật trạng thái
         setIsLoggedIn(false);
-        
+
         toast.success("Logged out successfully!");
         navigate("/homepage");
       } catch (err) {
@@ -122,7 +123,7 @@ function HomePage() {
           <NavLink to="/find" className="nav-link">Find Buddy</NavLink>
           <NavLink to="/become-buddy" className="nav-link">Become Buddy</NavLink>
           <NavLink to="/how-it-works" className="nav-link">How it works</NavLink>
-          
+
           {/* Hiển thị nút theo trạng thái đăng nhập */}
           {!isLoggedIn ? (
             <button className="login-btn" onClick={handleLogin}>
@@ -218,7 +219,7 @@ function HomePage() {
             ))}
           </div>
         </section>
-
+        <SelectByPreference />
         {/* How it works */}
         <section className="steps-section">
           <div className="section-header">

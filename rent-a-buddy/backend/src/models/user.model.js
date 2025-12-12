@@ -52,8 +52,15 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  relatedDestination: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Destination'
   }
-}, {
+],
+},
+ {
   timestamps: true
 });
 
