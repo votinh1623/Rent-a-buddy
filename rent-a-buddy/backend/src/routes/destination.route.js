@@ -4,34 +4,37 @@ import {
   createDestination,
   getAllDestinations,
   getDestinationById,
-  //getDestinationsByCity,
-  //getPopularDestinations,
   updateDestination,
   deleteDestination,
   addActivityToDestination,
   removeActivityFromDestination,
-  //getNearbyDestinations,
   getGuidesForDestination,
-  getActivitiesByDestination 
+  getActivitiesByDestination,
+  addDestinationToGuide,
+  removeDestinationFromGuide,
+  getGuidesByDestination,
+  bulkAddDestinationsToGuide
 } from '../controllers/destination.controller.js';
 import { auth, adminAuth } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// ==================== PUBLIC ROUTES ====================
-router.get('/', getAllDestinations); // GET /api/destinations
-// router.get('/popular', getPopularDestinations); // GET /api/destinations/popular
-// router.get('/nearby', getNearbyDestinations); // GET /api/destinations/nearby
-// router.get('/city/:city', getDestinationsByCity); // GET /api/destinations/city/:city
-router.get('/:id', getDestinationById); // GET /api/destinations/:id
-router.get('/:destinationId/guides', getGuidesForDestination); // GET /api/destinations/:destinationId/guides
+router.get('/', getAllDestinations);
+router.get('/:id', getDestinationById);
 router.get('/:destinationId/activities', getActivitiesByDestination);
+router.get('/:destinationId/guides', getGuidesForDestination); // Guides with matching activities
+router.get('/:destinationId/guides-by-destination', getGuidesByDestination); // Guides who specifically added this destination
 
-// ==================== ADMIN ROUTES ====================
-router.post('/', auth, adminAuth, createDestination); // POST /api/destinations
-router.put('/:id', auth, adminAuth, updateDestination); // PUT /api/destinations/:id
-router.delete('/:id', auth, adminAuth, deleteDestination); // DELETE /api/destinations/:id
-router.post('/add-activity', auth, adminAuth, addActivityToDestination); // POST /api/destinations/add-activity
-router.delete('/remove-activity', auth, adminAuth, removeActivityFromDestination); // DELETE /api/destinations/remove-activity
+// Protected routes (require authentication)
+router.post('/add-to-guide', auth, addDestinationToGuide); // Add destination to guide's profile
+router.post('/remove-from-guide', auth, removeDestinationFromGuide); // Remove destination from guide's profile
+router.post('/bulk-add-to-guide', auth, bulkAddDestinationsToGuide); // Bulk add destinations to guide
+
+// Admin only routes
+router.post('/', auth, adminAuth, createDestination);
+router.put('/:id', auth, adminAuth, updateDestination);
+router.delete('/:id', auth, adminAuth, deleteDestination);
+router.post('/add-activity', auth, adminAuth, addActivityToDestination);
+router.post('/remove-activity', auth, adminAuth, removeActivityFromDestination);
 
 export default router;

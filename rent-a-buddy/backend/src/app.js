@@ -10,6 +10,7 @@ import database from "./lib/database.js";
 import authRoutes from "./routes/auth.route.js";
 import activityRoutes from './routes/activity.route.js';
 import destinationRoutes from './routes/destination.route.js';  
+import buddyRoutes from './routes/buddy.route.js';
 import { createServer } from "http";
 import { Server } from "socket.io";
 const app = express();
@@ -42,6 +43,7 @@ app.use(cors({
 // Routes
 app.use('/api/activities', activityRoutes);
 app.use('/api/destinations', destinationRoutes);
+app.use('/api/buddies', buddyRoutes);
 app.use('/api/auth', authRoutes);
 app.use((err, req, res, next) => {
   console.error(err.stack);

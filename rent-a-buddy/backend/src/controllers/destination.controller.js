@@ -223,7 +223,394 @@ export const updateDestination = async (req, res) => {
     });
   }
 };
+// Add destination to guide's related destinations
+export const addDestinationToGuide = async (req, res) => {
+  try {
+    const { destinationId } = req.body;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
+    // Validate input
+    if (!destinationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Destination ID is required'
+      });
+    }
+
+    // Check if destination exists and is active
+    const destination = await Destination.findById(destinationId);
+    if (!destination) {
+      return res.status(404).json({
+        success: false,
+        message: 'Destination not found'
+      });
+    }
+
+    if (!destination.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: 'Destination is not active'
+      });
+    }
+
+    // Find the user/guide
+    const guide = await User.findById(userId);
+    if (!guide) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user is a tour guide
+    // Allow both guide and admin to add destinations
+    if (guide.role !== 'tour-guide' && userRole !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only tour guides can add destinations to their profile'
+      });
+    }
+
+    // Check if destination already added to guide
+    if (guide.relatedDestination.includes(destinationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Destination already added to your profile'
+      });
+    }
+
+    // Check limit for destinations per guide (optional)
+    const MAX_DESTINATIONS_PER_GUIDE = 10; // You can adjust this number
+    if (guide.relatedDestination.length >= MAX_DESTINATIONS_PER_GUIDE) {
+      return res.status(400).json({
+        success: false,
+        message: `You can only add up to ${MAX_DESTINATIONS_PER_GUIDE} destinations to your profile`
+      });
+    }
+
+    // Add destination to guide's related destinations
+    guide.relatedDestination.push(destinationId);
+    await guide.save();
+
+    // Populate the destination details for response
+    const updatedGuide = await User.findById(userId)
+      .populate('relatedDestination', 'name city country coverImg')
+      .select('-password -verificationDocuments');
+
+    res.status(200).json({
+      success: true,
+      message: 'Destination added to your profile successfully',
+      data: {
+        guide: updatedGuide,
+        addedDestination: {
+          _id: destination._id,
+          name: destination.name,
+          city: destination.city,
+          country: destination.country
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Add destination to guide error:', error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid destination ID format'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Error adding destination to guide',
+      error: error.message
+    });
+  }
+};
+
+// Remove destination from guide's related destinations
+export const removeDestinationFromGuide = async (req, res) => {
+  try {
+    const { destinationId } = req.body;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Validate input
+    if (!destinationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Destination ID is required'
+      });
+    }
+
+    // Find the user/guide
+    const guide = await User.findById(userId);
+    if (!guide) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check permissions
+    if (guide.role !== 'tour-guide' && userRole !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only tour guides can manage their destinations'
+      });
+    }
+
+    // Check if destination exists in guide's list
+    const destinationIndex = guide.relatedDestination.indexOf(destinationId);
+    if (destinationIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Destination not found in your profile'
+      });
+    }
+
+    // Remove destination from guide's list
+    guide.relatedDestination.splice(destinationIndex, 1);
+    await guide.save();
+
+    // Populate the remaining destinations for response
+    const updatedGuide = await User.findById(userId)
+      .populate('relatedDestination', 'name city country coverImg')
+      .select('-password -verificationDocuments');
+
+    res.status(200).json({
+      success: true,
+      message: 'Destination removed from your profile successfully',
+      data: updatedGuide
+    });
+  } catch (error) {
+    console.error('Remove destination from guide error:', error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid destination ID format'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Error removing destination from guide',
+      error: error.message
+    });
+  }
+};
+
+// Get all guides for a specific destination (already exists in your code as getGuidesForDestination)
+// This function returns guides who have activities matching destination activities
+
+// Get guides who specifically added this destination to their profile
+export const getGuidesByDestination = async (req, res) => {
+  try {
+    const { destinationId } = req.params;
+    const {
+      page = 1,
+      limit = 10,
+      verifiedOnly = false,
+      minRating = 0,
+      sortBy = 'rating'
+    } = req.query;
+
+    // Check if destination exists
+    const destination = await Destination.findById(destinationId);
+    if (!destination) {
+      return res.status(404).json({
+        success: false,
+        message: 'Destination not found'
+      });
+    }
+
+    // Build query for guides who have this destination in their relatedDestination
+    const query = {
+      role: 'tour-guide',
+      isActive: true,
+      relatedDestination: destinationId
+    };
+
+    // Additional filters
+    if (verifiedOnly === 'true' || verifiedOnly === true) {
+      query.isVerified = true;
+    }
+
+    if (minRating) {
+      query['rating.average'] = { $gte: parseFloat(minRating) };
+    }
+
+    const skip = (page - 1) * limit;
+
+    // Sort options
+    const sortOptions = {};
+    if (sortBy === 'rating') {
+      sortOptions['rating.average'] = -1;
+    } else if (sortBy === 'price') {
+      sortOptions.hourlyRate = 1;
+    } else if (sortBy === 'experience') {
+      sortOptions.yearsOfExperience = -1;
+    } else {
+      sortOptions.createdAt = -1;
+    }
+
+    // Get guides
+    const guides = await User.find(query)
+      .populate('relatedActivities', 'name category icon')
+      .populate('relatedDestination', 'name city')
+      .select('-password -verificationDocuments -email -phoneNumber')
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await User.countDocuments(query);
+
+    // Format response
+    const formattedGuides = guides.map(guide => ({
+      ...guide,
+      rating: {
+        average: guide.rating?.average || 0,
+        count: guide.rating?.count || 0,
+        stars: '★'.repeat(Math.floor(guide.rating?.average || 0)) + 
+               '☆'.repeat(5 - Math.floor(guide.rating?.average || 0))
+      }
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedGuides,
+      destination: {
+        _id: destination._id,
+        name: destination.name,
+        city: destination.city,
+        country: destination.country
+      },
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get guides by destination error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching guides for destination',
+      error: error.message
+    });
+  }
+};
+
+// Bulk add destinations to guide (for admin or guide setup)
+export const bulkAddDestinationsToGuide = async (req, res) => {
+  try {
+    const { destinationIds, guideId } = req.body;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Validate input
+    if (!destinationIds || !Array.isArray(destinationIds)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Destination IDs array is required'
+      });
+    }
+
+    if (!guideId && userRole !== 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Guide ID is required for non-admin users'
+      });
+    }
+
+    // Determine which guide to update
+    const targetGuideId = userRole === 'admin' ? guideId : userId;
+    
+    // Check if guide exists and is a tour-guide
+    const guide = await User.findById(targetGuideId);
+    if (!guide) {
+      return res.status(404).json({
+        success: false,
+        message: 'Guide not found'
+      });
+    }
+
+    if (guide.role !== 'tour-guide') {
+      return res.status(400).json({
+        success: false,
+        message: 'User is not a tour guide'
+      });
+    }
+
+    // Check if destinations exist and are active
+    const destinations = await Destination.find({
+      _id: { $in: destinationIds },
+      isActive: true
+    });
+
+    if (destinations.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No valid active destinations found'
+      });
+    }
+
+    // Get existing destination IDs to avoid duplicates
+    const existingDestinationIds = guide.relatedDestination.map(id => id.toString());
+    const validDestinationIds = destinations.map(dest => dest._id.toString());
+    
+    // Filter out already added destinations
+    const newDestinationIds = validDestinationIds.filter(
+      id => !existingDestinationIds.includes(id)
+    );
+
+    if (newDestinationIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'All destinations are already added to this guide'
+      });
+    }
+
+    // Check limit
+    const MAX_DESTINATIONS_PER_GUIDE = 10;
+    if (guide.relatedDestination.length + newDestinationIds.length > MAX_DESTINATIONS_PER_GUIDE) {
+      return res.status(400).json({
+        success: false,
+        message: `Adding these destinations would exceed the limit of ${MAX_DESTINATIONS_PER_GUIDE} destinations`
+      });
+    }
+
+    // Add new destinations
+    guide.relatedDestination.push(...newDestinationIds);
+    await guide.save();
+
+    // Populate for response
+    const updatedGuide = await User.findById(targetGuideId)
+      .populate('relatedDestination', 'name city country coverImg')
+      .select('-password -verificationDocuments');
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully added ${newDestinationIds.length} destination(s) to guide profile`,
+      data: {
+        guide: updatedGuide,
+        addedCount: newDestinationIds.length,
+        totalDestinations: updatedGuide.relatedDestination.length
+      }
+    });
+  } catch (error) {
+    console.error('Bulk add destinations to guide error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding destinations to guide',
+      error: error.message
+    });
+  }
+};
 // Delete destination (Soft delete - Admin only)
 export const deleteDestination = async (req, res) => {
   try {
