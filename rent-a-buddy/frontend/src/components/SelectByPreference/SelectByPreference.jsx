@@ -1,59 +1,43 @@
 // src/components/SelectByPreference.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import './SelectByPreference.scss';
 
 const SelectByPreference = () => {
-  const { t } = useTranslation(['common', 'preferences']);
   const navigate = useNavigate();
-
+  
   const [selectedActivities, setSelectedActivities] = useState([]);
-  const [selectedDestination, setSelectedDestination] = useState('');
+  const [selectedDestination, setSelectedDestination] = useState(null);
   const [destinations, setDestinations] = useState([]);
-  const [activities, setActivities] = useState([]);
+  const [allActivities, setAllActivities] = useState([]);
+  const [filteredActivities, setFilteredActivities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [showAllDestinations, setShowAllDestinations] = useState(false);
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const [loadingActivities, setLoadingActivities] = useState(false);
 
   // Fetch destinations và activities từ API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        // Fetch destinations (chỉ lấy ở Đà Nẵng)
-        const destinationsRes = await fetch('/api/destinations?city=Da%20Nang&isPopular=true');
+        
+        // Fetch destinations
+        const destinationsRes = await fetch('/api/destinations');
         if (!destinationsRes.ok) throw new Error('Failed to fetch destinations');
         const destinationsData = await destinationsRes.json();
-
+        
         // Fetch all activities
         const activitiesRes = await fetch('/api/activities');
         if (!activitiesRes.ok) throw new Error('Failed to fetch activities');
         const activitiesData = await activitiesRes.json();
-
+        
         setDestinations(destinationsData.data || []);
-        setActivities(activitiesData.data || []);
-        setError(null);
+        setAllActivities(activitiesData.data || []);
+        setFilteredActivities(activitiesData.data || []);
+        
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError(err.message);
-
-        // Fallback data nếu API fail
-        // setDestinations([
-        //   { _id: 'my-khe-beach', name: 'My Khe Beach', description: 'Famous white sand beach' },
-        //   { _id: 'marble-mountains', name: 'Marble Mountains', description: 'Buddhist sanctuaries and caves' },
-        //   { _id: 'dragon-bridge', name: 'Dragon Bridge', description: 'Iconic fire-breathing bridge' },
-        //   { _id: 'ba-na-hills', name: 'Ba Na Hills', description: 'French village and Golden Bridge' },
-        // ]);
-
-        // setActivities([
-        //   { _id: 'food', name: 'Food Tour', icon: '🍜' },
-        //   { _id: 'history', name: 'History', icon: '🏛️' },
-        //   { _id: 'beach', name: 'Beach', icon: '🏖️' },
-        //   { _id: 'nightlife', name: 'Nightlife', icon: '🌃' },
-        //   { _id: 'photography', name: 'Photography', icon: '📸' },
-        //   { _id: 'shopping', name: 'Shopping', icon: '🛍️' },
-        // ]);
       } finally {
         setLoading(false);
       }
@@ -62,28 +46,79 @@ const SelectByPreference = () => {
     fetchData();
   }, []);
 
+  // Fetch activities khi destination thay đổi
+  useEffect(() => {
+    const fetchActivitiesForDestination = async () => {
+      if (selectedDestination) {
+        setLoadingActivities(true);
+        try {
+          const response = await fetch(`/api/destinations/${selectedDestination._id}/activities`);
+          if (response.ok) {
+            const data = await response.json();
+            setFilteredActivities(data.data || []);
+          } else {
+            // Fallback: filter từ allActivities
+            const destActivityIds = selectedDestination.activities?.map(id => 
+              typeof id === 'object' ? id._id : id
+            ) || [];
+            
+            const filtered = allActivities.filter(activity => 
+              destActivityIds.some(id => 
+                String(id) === String(activity._id)
+              )
+            );
+            setFilteredActivities(filtered);
+          }
+        } catch (error) {
+          console.error('Error fetching destination activities:', error);
+          // Fallback logic
+          const destActivityIds = selectedDestination.activities?.map(id => 
+            typeof id === 'object' ? id._id : id
+          ) || [];
+          
+          const filtered = allActivities.filter(activity => 
+            destActivityIds.some(id => 
+              String(id) === String(activity._id)
+            )
+          );
+          setFilteredActivities(filtered);
+        } finally {
+          setLoadingActivities(false);
+          setShowAllActivities(false);
+        }
+      } else {
+        setFilteredActivities(allActivities);
+      }
+    };
+
+    fetchActivitiesForDestination();
+  }, [selectedDestination, allActivities]);
+
   const toggleActivity = (activityId) => {
-    setSelectedActivities(prev =>
+    setSelectedActivities(prev => 
       prev.includes(activityId)
         ? prev.filter(id => id !== activityId)
         : [...prev, activityId]
     );
   };
 
-  const handleDestinationChange = (e) => {
-    setSelectedDestination(e.target.value);
-  };
+  const handleDestinationSelect = (destination) => {
+    if (selectedDestination?._id === destination._id) {
+      setSelectedDestination(null);
+    } else {
+      setSelectedDestination(destination);
+    }};
 
   const handleFindBuddies = () => {
     if (!selectedDestination && selectedActivities.length === 0) {
-      alert(t('preferences:select_required', 'Please select at least one destination or activity'));
+      alert('Please select at least one destination or activity');
       return;
     }
 
     // Tạo query parameters
     const queryParams = new URLSearchParams();
     if (selectedDestination) {
-      queryParams.append('destinationId', selectedDestination);
+      queryParams.append('destinationId', selectedDestination._id);
     }
     if (selectedActivities.length > 0) {
       queryParams.append('activities', selectedActivities.join(','));
@@ -95,14 +130,29 @@ const SelectByPreference = () => {
 
   const handleClearAll = () => {
     setSelectedActivities([]);
-    setSelectedDestination('');
+    setSelectedDestination(null);
   };
+
+  // Get popular destinations (first 5 with isPopular flag)
+  const popularDestinations = destinations
+    .filter(dest => dest.isPopular)
+    .slice(0, 5);
+
+  // Get visible destinations based on showAll toggle
+  const visibleDestinations = showAllDestinations 
+    ? destinations 
+    : popularDestinations;
+
+  // Get visible activities based on showAll toggle
+  const visibleActivities = showAllActivities
+    ? filteredActivities
+    : filteredActivities.slice(0, 20);
 
   if (loading) {
     return (
       <div className="select-by-preference loading">
         <div className="loading-spinner"></div>
-        <p>{t('preferences:loading', 'Loading...')}</p>
+        <p>Loading destinations and activities...</p>
       </div>
     );
   }
@@ -110,163 +160,242 @@ const SelectByPreference = () => {
   return (
     <div className="select-by-preference">
       <div className="preference-header">
-        <h2>{t('preferences:title', 'Find Your Perfect Buddy')}</h2>
+        <h2>Find Your Perfect Buddy in Da Nang</h2>
         <p className="subtitle">
-          {t('preferences:subtitle', 'Select your preferences in Da Nang and find the perfect local buddy for your adventure')}
+          Select a destination and preferred activities to find local buddies
         </p>
       </div>
 
-      {error && (
-        <div className="error-message">
-          <p>{t('preferences:api_error', 'Using sample data. API connection failed.')}</p>
+      {/* Destination Selection - Vertical Grid */}
+      <div className="preference-section destination-section">
+        <div className="section-header">
+          <h3>
+            Choose a Destination
+            {selectedDestination && (
+              <span className="selection-hint">
+                Selected: {selectedDestination.name}
+              </span>
+            )}
+          </h3>
+          <p>Popular spots in Da Nang</p>
         </div>
-      )}
-
-      <div className="preference-sections">
-        {/* Destination Selection - Hiển thị trước */}
-        <div className="preference-section destination-section">
-          <div className="section-header">
-            <h3>{t('preferences:choose_destination', 'Choose a Destination')}</h3>
-            <p>{t('preferences:destination_hint', 'Select a popular spot in Da Nang')}</p>
-          </div>
-
-          <div className="destination-options">
-            {destinations.map(destination => (
-              <div
-                key={destination._id}
-                className={`destination-option ${selectedDestination === destination._id ? 'selected' : ''}`}
-                onClick={() => setSelectedDestination(destination._id)}
-              >
-                <div className="destination-image">
-                  {destination.coverImg ? (
-                    <img
-                      src={destination.coverImg}
-                      alt={destination.name}
-                      className="destination-img"
-                    />
-                  ) : (
-                    <div className="image-placeholder">
-                      {destination.name.charAt(0)}
-                    </div>
-                  )}
-                </div>
-                <div className="destination-info">
-                  <h4>{destination.name}</h4>
-                  <p className="destination-desc">{destination.description}</p>
-                  {destination.isPopular && (
-                    <span className="popular-badge">Popular</span>
-                  )}
-                </div>
-                <div className="destination-check">
-                  {selectedDestination === destination._id && (
-                    <div className="check-mark">✓</div>
-                  )}
+        
+        <div className={`destinations-grid ${showAllDestinations ? 'expanded' : ''}`}>
+          {visibleDestinations.map(destination => (
+            <div
+              key={destination._id}
+              className={`destination-card ${selectedDestination?._id === destination._id ? 'selected' : ''}`}
+              onClick={() => handleDestinationSelect(destination)}
+            >
+              <div className="destination-image">
+                {destination.coverImg ? (
+                  <img 
+                    src={destination.coverImg}
+                    alt={destination.name}
+                    className="destination-img"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = `https://via.placeholder.com/150/667eea/ffffff?text=${destination.name.charAt(0)}`;
+                    }}
+                  />
+                ) : (
+                  <div className="image-placeholder">
+                    {destination.name.charAt(0)}
+                  </div>
+                )}
+                {destination.isPopular && (
+                  <div className="popular-badge">
+                    <span className="star">★</span> Popular
+                  </div>
+                )}
+              </div>
+              <div className="destination-content">
+                <h4>{destination.name}</h4>
+                <p className="destination-desc">{destination.description}</p>
+                <div className="destination-tags">
+                  <span className="tag">
+                    {destination.activities?.length || 0} activities
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
+              <div className="destination-check">
+                {selectedDestination?._id === destination._id && (
+                  <div className="check-circle">
+                    <span className="check-icon">✓</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Activities Selection */}
-        <div className="preference-section activities-section">
-          <div className="section-header">
-            <h3>{t('preferences:choose_activities', 'Select Activities')}</h3>
-            <p>{t('preferences:activities_hint', 'Choose activities you\'re interested in (multiple selections)')}</p>
+        {/* Show More/Less Button for Destinations */}
+        {destinations.length > 5 && (
+          <div className="show-more-container">
+            <button
+              className="show-more-btn"
+              onClick={() => setShowAllDestinations(!showAllDestinations)}
+            >
+              {showAllDestinations 
+                ? 'Show Less Destinations'
+                : `Show All ${destinations.length} Destinations`
+              }
+              <span className={`arrow ${showAllDestinations ? 'up' : 'down'}`}>
+                {showAllDestinations ? '↑' : '↓'}
+              </span>
+            </button>
           </div>
+        )}
+      </div>
 
-          <div className="activities-grid">
-            {activities.map(activity => (
-              <button
-                key={activity._id}
-                className={`activity-option ${selectedActivities.includes(activity._id) ? 'selected' : ''}`}
-                onClick={() => toggleActivity(activity._id)}
-                style={{
-                  '--activity-color': activity.color || '#2563eb'
-                }}
-              >
-                <div className="activity-icon">{activity.icon || '🌟'}</div>
-                <span className="activity-name">{activity.name}</span>
-                {selectedActivities.includes(activity._id) && (
-                  <div className="activity-check">✓</div>
-                )}
-              </button>
-            ))}
-          </div>
+      {/* Activities Selection - Vertical Grid */}
+      <div className="preference-section activities-section">
+        <div className="section-header">
+          <h3>
+            Select Activities
+            {selectedDestination && (
+              <span className="selection-hint">
+                Available at {selectedDestination.name}
+              </span>
+            )}
+          </h3>
+          <p>
+            {selectedDestination
+              ? `Activities available at ${selectedDestination.name}`
+              : 'All available activities in Da Nang'
+            }
+          </p>
+        </div>
+        
+        <div className={`activities-grid ${showAllActivities ? 'expanded' : ''}`}>
+          {visibleActivities.map(activity => (
+            <button
+              key={activity._id}
+              className={`activity-card ${selectedActivities.includes(activity._id) ? 'selected' : ''}`}
+              onClick={() => toggleActivity(activity._id)}
+              style={{
+                '--activity-color': activity.color || '#2563eb'
+              }}
+            >
+              <div className="activity-icon" style={{ backgroundColor: activity.color || '#2563eb' }}>
+                {activity.icon || '🌟'}
+              </div>
+              <span className="activity-name">{activity.name}</span>
+              {selectedActivities.includes(activity._id) && (
+                <div className="activity-check">
+                  <span className="check-icon">✓</span>
+                </div>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Selected Summary */}
-      {(selectedDestination || selectedActivities.length > 0) && (
-        <div className="selected-summary">
-          <h4>{t('preferences:selected_summary', 'Your Selection:')}</h4>
-          <div className="summary-items">
-            {selectedDestination && (
-              <div className="summary-item">
-                <span className="item-label">Destination:</span>
-                <span className="item-value">
-                  {destinations.find(d => d._id === selectedDestination)?.name || selectedDestination}
-                </span>
-                <button
-                  className="remove-item"
-                  onClick={() => setSelectedDestination('')}
-                >
-                  ×
-                </button>
-              </div>
-            )}
-
-            {selectedActivities.length > 0 && (
-              <div className="summary-item">
-                <span className="item-label">Activities:</span>
-                <span className="item-value">
-                  {selectedActivities.map(id =>
-                    activities.find(a => a._id === id)?.name || id
-                  ).join(', ')}
-                </span>
-                <button
-                  className="remove-item"
-                  onClick={() => setSelectedActivities([])}
-                >
-                  ×
-                </button>
-              </div>
-            )}
+      {/* Selection Summary & Actions */}
+      <div className="selection-actions">
+        {/* Selected Summary */}
+        {(selectedDestination || selectedActivities.length > 0) && (
+          <div className="selected-summary">
+            <h4>Your Selection</h4>
+            <div className="summary-items">
+              {selectedDestination && (
+                <div className="summary-item">
+                  <span className="item-label">📍 Destination:</span>
+                  <span className="item-value">
+                    {selectedDestination.name}
+                  </span>
+                  <button 
+                    className="remove-btn"
+                    onClick={() => setSelectedDestination(null)}
+                    aria-label="Remove destination"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              
+              {selectedActivities.length > 0 && (
+                <div className="summary-item">
+                  <span className="item-label">🎯 Activities:</span>
+                  <div className="activity-chips">
+                    {selectedActivities.map(id => {
+                      const activity = allActivities.find(a => a._id === id);
+                      return (
+                        <span key={id} className="activity-chip">
+                          {activity?.icon} {activity?.name}
+                          <button 
+                            className="chip-remove"
+                            onClick={() => toggleActivity(id)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <button 
+                    className="remove-btn"
+                    onClick={() => setSelectedActivities([])}
+                    aria-label="Clear all activities"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="action-buttons">
+          <button 
+            className="clear-btn"
+            onClick={handleClearAll}
+            disabled={!selectedDestination && selectedActivities.length === 0}
+          >
+            Clear All
+          </button>
+          
+          <button 
+            className="find-buddies-btn"
+            onClick={handleFindBuddies}
+          >
+            <span className="btn-text">
+              Find Matching Buddies
+              {(selectedDestination || selectedActivities.length > 0) && (
+                <span className="match-count">
+                  {selectedActivities.length} activit{selectedActivities.length !== 1 ? 'ies' : 'y'}
+                  {selectedDestination ? ` at ${selectedDestination.name}` : ' selected'}
+                </span>
+              )}
+            </span>
+            <span className="arrow">→</span>
+          </button>
         </div>
-      )}
-
-      {/* Action Buttons */}
-      <div className="action-buttons">
-        <button
-          className="clear-btn"
-          onClick={handleClearAll}
-          disabled={!selectedDestination && selectedActivities.length === 0}
-        >
-          {t('preferences:clear_all', 'Clear All')}
-        </button>
-
-        <button
-          className="find-buddies-btn"
-          onClick={handleFindBuddies}
-        >
-          {t('preferences:find_buddies', 'Find Matching Buddies')}
-          <span className="arrow">→</span>
-        </button>
       </div>
 
       {/* Quick Stats */}
       <div className="quick-stats">
-        <div className="stat-item">
-          <div className="stat-number">{destinations.length}+</div>
-          <div className="stat-label">{t('preferences:destinations_available', 'Destinations in Da Nang')}</div>
+        <div className="stat-card">
+          <div className="stat-icon">📍</div>
+          <div className="stat-content">
+            <div className="stat-number">{destinations.length}</div>
+            <div className="stat-label">Destinations in Da Nang</div>
+          </div>
         </div>
-        <div className="stat-item">
-          <div className="stat-number">{activities.length}+</div>
-          <div className="stat-label">{t('preferences:activities_available', 'Activities Available')}</div>
+        <div className="stat-card">
+          <div className="stat-icon">🎯</div>
+          <div className="stat-content">
+            <div className="stat-number">{allActivities.length}</div>
+            <div className="stat-label">Activities Available</div>
+          </div>
         </div>
-        <div className="stat-item">
-          <div className="stat-number">50+</div>
-          <div className="stat-label">{t('preferences:local_buddies', 'Local Buddies')}</div>
+        <div className="stat-card">
+          <div className="stat-icon">👥</div>
+          <div className="stat-content">
+            <div className="stat-number">50+</div>
+            <div className="stat-label">Local Buddies</div>
+          </div>
         </div>
       </div>
     </div>

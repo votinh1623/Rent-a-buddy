@@ -11,7 +11,8 @@ import {
   addActivityToDestination,
   removeActivityFromDestination,
   //getNearbyDestinations,
-  getGuidesForDestination
+  getGuidesForDestination,
+  getActivitiesByDestination 
 } from '../controllers/destination.controller.js';
 import { auth, adminAuth } from '../middleware/auth.middleware.js';
 
@@ -24,6 +25,7 @@ router.get('/', getAllDestinations); // GET /api/destinations
 // router.get('/city/:city', getDestinationsByCity); // GET /api/destinations/city/:city
 router.get('/:id', getDestinationById); // GET /api/destinations/:id
 router.get('/:destinationId/guides', getGuidesForDestination); // GET /api/destinations/:destinationId/guides
+router.get('/:destinationId/activities', getActivitiesByDestination);
 
 // ==================== ADMIN ROUTES ====================
 router.post('/', auth, adminAuth, createDestination); // POST /api/destinations

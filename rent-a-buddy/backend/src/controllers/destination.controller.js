@@ -71,7 +71,7 @@ export const getAllDestinations = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 10,
+      limit = 15,
       city,
       country,
       isPopular,
@@ -442,6 +442,38 @@ export const getGuidesForDestination = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching guides for destination',
+      error: error.message
+    });
+  }
+};
+export const getActivitiesByDestination = async (req, res) => {
+  try {
+    const { destinationId } = req.params;
+    
+    const destination = await Destination.findById(destinationId)
+      .populate('activities', '_id name icon color category description isPopular');
+    
+    if (!destination) {
+      return res.status(404).json({
+        success: false,
+        message: 'Destination not found'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: destination.activities || [],
+      destination: {
+        _id: destination._id,
+        name: destination.name,
+        city: destination.city
+      }
+    });
+  } catch (error) {
+    console.error('Get activities by destination error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching activities by destination',
       error: error.message
     });
   }
