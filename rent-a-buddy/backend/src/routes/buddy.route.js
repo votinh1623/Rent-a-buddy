@@ -9,17 +9,19 @@ import {
   getBuddiesByActivity,
   getOnlineBuddies,
   registerAsBuddy,
-  getCurrentBuddyProfile
+  getCurrentBuddyProfile,
+  searchBuddies  // Thêm hàm mới
 } from '../controllers/buddy.controller.js';
 import { auth, adminAuth } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 // Public routes (không cần auth)
-router.get('/', getAllBuddies); // Lấy tất cả buddies với filter
+router.get('/all', getAllBuddies); // Lấy tất cả buddies với filter
+router.get('/search', searchBuddies); // Tìm kiếm buddies theo destination và activity
 router.get('/online', getOnlineBuddies); // Lấy buddies đang online
-router.get('/destination/:destinationId', getBuddiesByDestination); // Lấy buddies theo destination
-router.get('/activity/:activityId', getBuddiesByActivity); // Lấy buddies theo activity
+router.get('/destination/:destinationId', getBuddiesByDestination); // Lấy buddies theo destination ID
+router.get('/activity/:activityId', getBuddiesByActivity); // Lấy buddies theo activity ID
 router.get('/:id', getBuddyById); // Lấy chi tiết một buddy
 
 // Protected routes (cần auth)

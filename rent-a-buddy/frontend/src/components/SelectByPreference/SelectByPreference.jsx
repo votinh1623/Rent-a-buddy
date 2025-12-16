@@ -109,23 +109,28 @@ const SelectByPreference = () => {
       setSelectedDestination(destination);
     }};
 
-  const handleFindBuddies = () => {
+ const handleFindBuddies = () => {
     if (!selectedDestination && selectedActivities.length === 0) {
       alert('Please select at least one destination or activity');
       return;
     }
 
-    // Tạo query parameters
+    // Tạo query parameters theo đúng format API đã cài đặt
     const queryParams = new URLSearchParams();
+    
+    // Nếu có destination, gửi ID hoặc name
     if (selectedDestination) {
-      queryParams.append('destinationId', selectedDestination._id);
+      queryParams.append('destination', selectedDestination._id);
+      // Hoặc có thể dùng tên: queryParams.append('destination', selectedDestination.name);
     }
+    
+    // Nếu có activities, gửi dưới dạng comma-separated IDs
     if (selectedActivities.length > 0) {
       queryParams.append('activities', selectedActivities.join(','));
     }
 
-    // Navigate đến find buddies page với filters
-    navigate(`/find-buddies?${queryParams.toString()}`);
+    // Navigate đến SearchResultPage với query parameters
+    navigate(`/home/search-result?${queryParams.toString()}`);
   };
 
   const handleClearAll = () => {

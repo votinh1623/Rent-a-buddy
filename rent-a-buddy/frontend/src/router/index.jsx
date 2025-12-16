@@ -6,6 +6,10 @@ import Signup from "../components/SignUp/SignUp";
 import PrivateRoute from "./PrivateRoute";
 import AdminRoute from "./AdminRoute.jsx";
 import Homepage from "../pages/HomePage/HomePage.jsx";
+import SelectByPreference from "../components/SelectByPreference/SelectByPreference.jsx";
+import SearchResultPage from "../pages/SearchResultPage/SearchResultPage.jsx";
+// import BrowseBuddiesPage from "../pages/BrowseBuddiesPage";
+// import BuddyDetailPage from "../pages/BuddyDetailPage";
 
 export const route = [
   { path: "/login", element: <Login /> },
@@ -13,7 +17,7 @@ export const route = [
 
   {
     path: "/",
-   // element: <PrivateRoute />,
+    // element: <PrivateRoute />,
     children: [
       {
         path: "",
@@ -26,6 +30,12 @@ export const route = [
             children: [
               { index: true, element: <Navigate to="homepage" replace /> },
               { path: "homepage", element: <Homepage /> },
+              
+              // Thêm routes cho chức năng tìm buddy
+              { path: "select-preferences", element: <SelectByPreference /> },
+              { path: "search-result", element: <SearchResultPage /> },
+              // { path: "browse-buddies", element: <BrowseBuddiesPage /> },
+              // { path: "buddy-detail/:id", element: <BuddyDetailPage /> },
             ],
           },
         ],
@@ -38,7 +48,7 @@ export const route = [
           {
             // element: <AdminLayout />,
             children: [
-            //   { index: true, element: <Navigate to="dashboard" replace /> },
+              //   { index: true, element: <Navigate to="dashboard" replace /> },
             ],
           },
         ],
