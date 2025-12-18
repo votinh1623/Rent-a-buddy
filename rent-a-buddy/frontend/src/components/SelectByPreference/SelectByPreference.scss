@@ -660,3 +660,70 @@
     50% { opacity: 0.5; }
   }
 }
+// Highlight animation
+.highlight-section {
+  position: relative;
+  z-index: 1;
+  animation: highlight-pulse 2s infinite;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    border: 3px solid #2563eb;
+    border-radius: 12px;
+    animation: highlight-border 2s infinite;
+    pointer-events: none;
+    z-index: -1;
+  }
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.01);
+  }
+}
+
+@keyframes highlight-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+    border-color: #2563eb;
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(37, 99, 235, 0);
+    border-color: #60a5fa;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    border-color: #2563eb;
+  }
+}
+
+// Find Buddy button trong nav
+.find-buddy-btn {
+  background: none;
+  border: none;
+  color: #6c757d;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-weight: 500;
+  
+  &:hover {
+    color: #2563eb;
+    background: rgba(37, 99, 235, 0.1);
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}

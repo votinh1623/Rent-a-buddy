@@ -1,9 +1,8 @@
-// src/components/SelectByPreference.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './SelectByPreference.scss';
 
-const SelectByPreference = () => {
+const SelectByPreference = ({ shouldHighlight }) => {
   const navigate = useNavigate();
   
   const [selectedActivities, setSelectedActivities] = useState([]);
@@ -15,6 +14,47 @@ const SelectByPreference = () => {
   const [showAllDestinations, setShowAllDestinations] = useState(false);
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [loadingActivities, setLoadingActivities] = useState(false);
+  const [highlightSection, setHighlightSection] = useState(null); // 'destination' hoặc 'activities'
+  
+  // Refs để scroll
+  const destinationSectionRef = useRef(null);
+  const activitiesSectionRef = useRef(null);
+
+  // Kích hoạt highlight khi được yêu cầu từ parent
+  useEffect(() => {
+    if (shouldHighlight) {
+      setHighlightSection('destination');
+      
+      // Tự động scroll đến destination section
+      setTimeout(() => {
+        if (destinationSectionRef.current) {
+          destinationSectionRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }, 200);
+      
+      // Xóa highlight sau 3 giây
+      const timer = setTimeout(() => {
+        setHighlightSection(null);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [shouldHighlight]);
+
+  // Tự động scroll xuống activities khi destination được chọn
+  useEffect(() => {
+    if (selectedDestination && activitiesSectionRef.current) {
+      setTimeout(() => {
+        activitiesSectionRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 300);
+    }
+  }, [selectedDestination]);
 
   // Fetch destinations và activities từ API
   useEffect(() => {
@@ -107,29 +147,32 @@ const SelectByPreference = () => {
       setSelectedDestination(null);
     } else {
       setSelectedDestination(destination);
-    }};
+      // Tự động scroll xuống activities section
+      setTimeout(() => {
+        if (activitiesSectionRef.current) {
+          activitiesSectionRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }, 100);
+    }
+  };
 
- const handleFindBuddies = () => {
+  const handleFindBuddies = () => {
     if (!selectedDestination && selectedActivities.length === 0) {
       alert('Please select at least one destination or activity');
       return;
     }
 
-    // Tạo query parameters theo đúng format API đã cài đặt
     const queryParams = new URLSearchParams();
-    
-    // Nếu có destination, gửi ID hoặc name
     if (selectedDestination) {
       queryParams.append('destination', selectedDestination._id);
-      // Hoặc có thể dùng tên: queryParams.append('destination', selectedDestination.name);
     }
-    
-    // Nếu có activities, gửi dưới dạng comma-separated IDs
     if (selectedActivities.length > 0) {
       queryParams.append('activities', selectedActivities.join(','));
     }
 
-    // Navigate đến SearchResultPage với query parameters
     navigate(`/home/search-result?${queryParams.toString()}`);
   };
 
@@ -138,20 +181,13 @@ const SelectByPreference = () => {
     setSelectedDestination(null);
   };
 
-  // Get popular destinations (first 5 with isPopular flag)
+  // Get popular destinations
   const popularDestinations = destinations
     .filter(dest => dest.isPopular)
     .slice(0, 5);
 
-  // Get visible destinations based on showAll toggle
-  const visibleDestinations = showAllDestinations 
-    ? destinations 
-    : popularDestinations;
-
-  // Get visible activities based on showAll toggle
-  const visibleActivities = showAllActivities
-    ? filteredActivities
-    : filteredActivities.slice(0, 20);
+  const visibleDestinations = showAllDestinations ? destinations : popularDestinations;
+  const visibleActivities = showAllActivities ? filteredActivities : filteredActivities.slice(0, 20);
 
   if (loading) {
     return (
@@ -171,8 +207,11 @@ const SelectByPreference = () => {
         </p>
       </div>
 
-      {/* Destination Selection - Vertical Grid */}
-      <div className="preference-section destination-section">
+      {/* Destination Selection */}
+      <div 
+        ref={destinationSectionRef}
+        className={`preference-section destination-section ${highlightSection === 'destination' ? 'highlight-section' : ''}`}
+      >
         <div className="section-header">
           <h3>
             Choose a Destination
@@ -234,7 +273,6 @@ const SelectByPreference = () => {
           ))}
         </div>
 
-        {/* Show More/Less Button for Destinations */}
         {destinations.length > 5 && (
           <div className="show-more-container">
             <button
@@ -253,8 +291,11 @@ const SelectByPreference = () => {
         )}
       </div>
 
-      {/* Activities Selection - Vertical Grid */}
-      <div className="preference-section activities-section">
+      {/* Activities Selection */}
+      <div 
+        ref={activitiesSectionRef}
+        className={`preference-section activities-section ${highlightSection === 'activities' ? 'highlight-section' : ''}`}
+      >
         <div className="section-header">
           <h3>
             Select Activities
@@ -298,7 +339,6 @@ const SelectByPreference = () => {
 
       {/* Selection Summary & Actions */}
       <div className="selection-actions">
-        {/* Selected Summary */}
         {(selectedDestination || selectedActivities.length > 0) && (
           <div className="selected-summary">
             <h4>Your Selection</h4>
@@ -351,7 +391,6 @@ const SelectByPreference = () => {
           </div>
         )}
 
-        {/* Action Buttons */}
         <div className="action-buttons">
           <button 
             className="clear-btn"

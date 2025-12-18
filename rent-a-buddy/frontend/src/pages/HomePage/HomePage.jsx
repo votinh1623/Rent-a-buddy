@@ -1,7 +1,8 @@
-// App.jsx
-import { useState, useEffect } from 'react'
+// HomePage.jsx
+import { useState, useEffect, useRef } from 'react'
 import './Homepage.scss'
 import { useNavigate, NavLink } from "react-router-dom";
+import { useLocation } from 'react-router-dom';
 import { logout } from '../../service/authService';
 import { toast } from 'react-toastify';
 import SelectByPreference from '../../components/SelectByPreference/SelectByPreference.jsx';
@@ -9,7 +10,10 @@ import SelectByPreference from '../../components/SelectByPreference/SelectByPref
 function HomePage() {
   const [currentBuddy, setCurrentBuddy] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [shouldHighlightPreference, setShouldHighlightPreference] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const preferenceSectionRef = useRef(null);
 
   // Kiểm tra trạng thái đăng nhập khi component mount
   useEffect(() => {
@@ -31,7 +35,32 @@ function HomePage() {
     window.addEventListener('storage', checkLoginStatus);
     return () => window.removeEventListener('storage', checkLoginStatus);
   }, []);
+  useEffect(() => {
+    // Kiểm tra nếu URL có hash '#select-preferences'
+    if (location.hash === '#select-preferences') {
+      setTimeout(() => {
+        if (preferenceSectionRef.current) {
+          preferenceSectionRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
 
+          // Xóa hash sau khi đã scroll
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      }, 100);
+    }
+  }, [location]);
+// Xóa highlight sau 5 giây
+  useEffect(() => {
+    if (shouldHighlightPreference) {
+      const timer = setTimeout(() => {
+        setShouldHighlightPreference(false);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [shouldHighlightPreference]);
   const handleLogout = async () => {
     if (window.confirm("Do you want to log out?")) {
       try {
@@ -60,7 +89,19 @@ function HomePage() {
   const handleLogin = () => {
     navigate("/login");
   };
-
+ const handleFindBuddyClick = () => {
+    setShouldHighlightPreference(true);
+    
+    // Scroll đến section SelectByPreference
+    setTimeout(() => {
+      if (preferenceSectionRef.current) {
+        preferenceSectionRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    }, 100);
+  };
   const buddies = [
     {
       id: 1,
@@ -120,7 +161,12 @@ function HomePage() {
           <span className="logo-primary">Rent a buddy</span>
         </div>
         <nav className="nav">
-          <NavLink to="/find" className="nav-link">Find Buddy</NavLink>
+          <button 
+            className="nav-link find-buddy-btn"
+            onClick={handleFindBuddyClick}
+          >
+            Find Buddy
+          </button>
           <NavLink to="/become-buddy" className="nav-link">Become Buddy</NavLink>
           <NavLink to="/how-it-works" className="nav-link">How it works</NavLink>
 
@@ -155,27 +201,12 @@ function HomePage() {
             <p className="hero-subtitle">
               Connect with verified locals who show you their city beyond tourist spots
             </p>
-
-
           </div>
         </div>
-        <SelectByPreference />
-        {/* <div className="search-bar">
-          <div className="search-input">
-            <input
-              type="text"
-              placeholder="Can't find where you want to go?"
-              className="destination-input"
-            />
-            <button className="search-btn">
-              <span>Find Buddy</span>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="white" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
-          </div>
-        </div> */}
-
+        {/* Section SelectByPreference với id và ref */}
+        <section id="select-preferences" ref={preferenceSectionRef}>
+          <SelectByPreference />
+        </section>
         {/* Featured Buddy */}
         <section className="featured-section">
           <div className="section-header">

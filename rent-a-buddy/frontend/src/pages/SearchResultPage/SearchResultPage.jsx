@@ -66,7 +66,7 @@ const SearchResultPage = () => {
   };
 
   const handleBack = () => {
-    navigate('/home/select-preferences');
+    navigate('/home/homepage#select-preferences');
   };
 
   const handleBuddyClick = (buddyId) => {
