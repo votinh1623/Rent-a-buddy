@@ -248,61 +248,68 @@ export const getAllBuddies = async (req, res) => {
 
 // Lấy thông tin chi tiết một buddy
 export const getBuddyById = async (req, res) => {
-    try {
-        const buddyId = req.params.id;
+  try {
+    const buddy = await User.findOne({
+      _id: req.params.id,
+      role: 'tour-guide',
+      isActive: true
+    })
+      .populate('relatedActivities', 'name category icon color description')
+      .populate('relatedDestination', 'name city country coverImg description isPopular')
+      // Xóa dòng populate featuredReviews hoặc comment nó lại
+      // .populate('featuredReviews', 'rating comment user date')
+      .select('-password -verificationDocuments');
 
-        const buddy = await User.findOne({
-            _id: buddyId,
-            role: 'tour-guide',
-            isActive: true
-        })
-            .populate('relatedActivities', 'name description price duration requirements')
-            .populate('relatedDestination', 'name description city country images')
-            .select('-password -verificationDocuments');
-
-        if (!buddy) {
-            return res.status(404).json({
-                success: false,
-                message: 'Buddy not found or inactive'
-            });
-        }
-
-        // Kiểm tra xem có phải là chủ tài khoản không
-        const isOwner = req.user && req.user._id.toString() === buddyId;
-        const isAdmin = req.user && req.user.role === 'admin';
-
-        // Format response
-        const responseData = {
-            ...buddy.toObject(),
-            rating: {
-                average: buddy.rating?.average || 0,
-                count: buddy.rating?.count || 0,
-                stars: '★'.repeat(Math.floor(buddy.rating?.average || 0)) +
-                    '☆'.repeat(5 - Math.floor(buddy.rating?.average || 0))
-            }
-        };
-
-        // Ẩn thông tin nhạy cảm nếu không phải chủ tài khoản hoặc admin
-        if (!isOwner && !isAdmin) {
-            delete responseData.email;
-            delete responseData.phoneNumber;
-            delete responseData.cancellationRate;
-        }
-
-        res.status(200).json({
-            success: true,
-            data: responseData
-        });
-    } catch (error) {
-        console.error('Error getting buddy:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching buddy details',
-            error: error.message
-        });
+    if (!buddy) {
+      return res.status(404).json({
+        success: false,
+        message: 'Buddy not found or inactive'
+      });
     }
-};
 
+    // Format response
+    const formattedBuddy = {
+      ...buddy.toObject(),
+      rating: {
+        average: buddy.rating?.average || 0,
+        count: buddy.rating?.count || 0,
+        breakdown: buddy.rating?.breakdown || {},
+        stars: '★'.repeat(Math.floor(buddy.rating?.average || 0)) + 
+               '☆'.repeat(5 - Math.floor(buddy.rating?.average || 0))
+      },
+      isVerifiedGuide: buddy.isVerified && buddy.role === 'tour-guide'
+    };
+
+    // Xử lý featuredReviews nếu không populate được
+    if (buddy.featuredReviews && buddy.featuredReviews.length > 0) {
+      // Nếu featuredReviews là ObjectIds, không làm gì cả
+      // Hoặc bạn có thể fetch reviews riêng nếu cần
+      formattedBuddy.featuredReviews = buddy.featuredReviews;
+    }
+
+    // Ẩn thông tin nhạy cảm
+    const isOwner = req.user && req.user._id.toString() === buddy._id.toString();
+    const isAdmin = req.user && req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      delete formattedBuddy.verificationDocuments;
+      delete formattedBuddy.email;
+      delete formattedBuddy.phoneNumber;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: formattedBuddy
+    });
+  } catch (error) {
+    console.error('Error getting buddy:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching buddy details',
+      error: error.message
+    });
+  }
+};
 // Tìm kiếm buddies theo destination và activity
 export const searchBuddies = async (req, res) => {
     try {

@@ -71,7 +71,52 @@ export const getActivitiesByCategory = async (req, res) => {
     });
   }
 };
+export const getActivitiesByIds = async (req, res) => {
+  try {
+    const { ids } = req.query;
+    
+    if (!ids) {
+      return res.status(400).json({
+        success: false,
+        message: 'Activity IDs are required'
+      });
+    }
 
+    const activityIds = ids.split(',').map(id => {
+      try {
+        return mongoose.Types.ObjectId.createFromHexString(id.trim());
+      } catch {
+        return null;
+      }
+    }).filter(id => id !== null);
+
+    if (activityIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        count: 0
+      });
+    }
+
+    const activities = await Activity.find({
+      _id: { $in: activityIds },
+      isActive: true
+    }).select('name category icon color description');
+
+    res.status(200).json({
+      success: true,
+      data: activities,
+      count: activities.length
+    });
+  } catch (error) {
+    console.error('Get activities by IDs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching activities',
+      error: error.message
+    });
+  }
+};
 // Lấy popular activities
 export const getPopularActivities = async (req, res) => {
   try {

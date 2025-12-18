@@ -8,6 +8,7 @@ import AdminRoute from "./AdminRoute.jsx";
 import Homepage from "../pages/HomePage/HomePage.jsx";
 import SelectByPreference from "../components/SelectByPreference/SelectByPreference.jsx";
 import SearchResultPage from "../pages/SearchResultPage/SearchResultPage.jsx";
+import BuddyProfilePage from '../pages/BuddyProfilePage/BuddyProfilePage.jsx';
 // import BrowseBuddiesPage from "../pages/BrowseBuddiesPage";
 // import BuddyDetailPage from "../pages/BuddyDetailPage";
 
@@ -34,6 +35,7 @@ export const route = [
               // Thêm routes cho chức năng tìm buddy
               { path: "select-preferences", element: <SelectByPreference /> },
               { path: "search-result", element: <SearchResultPage /> },
+              { path: "buddy/:id", element: <BuddyProfilePage /> },
               // { path: "browse-buddies", element: <BrowseBuddiesPage /> },
               // { path: "buddy-detail/:id", element: <BuddyDetailPage /> },
             ],

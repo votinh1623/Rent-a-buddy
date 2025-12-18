@@ -125,29 +125,49 @@ export const getAllDestinations = async (req, res) => {
 };
 
 // Get destination by ID
-export const getDestinationById = async (req, res) => {
+// Get destinations by IDs
+export const getDestinationsByIds = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const destination = await Destination.findById(id)
-      .populate('activities', 'name description category icon color');
-
-    if (!destination || !destination.isActive) {
-      return res.status(404).json({
+    const { ids } = req.query;
+    
+    if (!ids) {
+      return res.status(400).json({
         success: false,
-        message: 'Destination not found'
+        message: 'Destination IDs are required'
       });
     }
 
+    const destinationIds = ids.split(',').map(id => {
+      try {
+        return mongoose.Types.ObjectId.createFromHexString(id.trim());
+      } catch {
+        return null;
+      }
+    }).filter(id => id !== null);
+
+    if (destinationIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        count: 0
+      });
+    }
+
+    const destinations = await Destination.find({
+      _id: { $in: destinationIds },
+      isActive: true
+    }).select('name city country coverImg description activities');
+
     res.status(200).json({
       success: true,
-      data: destination
+      data: destinations,
+      count: destinations.length
     });
   } catch (error) {
-    console.error('Get destination by ID error:', error);
+    console.error('Get destinations by IDs error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching destination',
+      message: 'Error fetching destinations',
       error: error.message
     });
   }

@@ -11,7 +11,8 @@ import {
   getGuideActivities,
   updateActivity,
   deleteActivity,
-  getMyActivities
+  getMyActivities,
+  getActivitiesByIds
 } from '../controllers/activity.controller.js';
 import { auth, adminAuth, guideAuth } from '../middleware/auth.middleware.js';
 
@@ -20,6 +21,7 @@ const router = express.Router();
 // ==================== PUBLIC ROUTES ====================
 // Khách vãng lai có thể xem
 router.get('/', getAllActivities); // GET /api/activities
+router.get('/by-ids', getActivitiesByIds);
 router.get('/popular', getPopularActivities); // GET /api/activities/popular
 router.get('/category/:category', getActivitiesByCategory); // GET /api/activities/category/:category
 router.get('/:activityId/guides', getGuidesByActivity); // GET /api/activities/:activityId/guides

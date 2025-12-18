@@ -3,7 +3,7 @@ import express from 'express';
 import {
   createDestination,
   getAllDestinations,
-  getDestinationById,
+  getDestinationsByIds,
   updateDestination,
   deleteDestination,
   addActivityToDestination,
@@ -20,7 +20,7 @@ import { auth, adminAuth } from '../middleware/auth.middleware.js';
 const router = express.Router();
 
 router.get('/', getAllDestinations);
-router.get('/:id', getDestinationById);
+router.get('/by-ids', getDestinationsByIds);
 router.get('/:destinationId/activities', getActivitiesByDestination);
 router.get('/:destinationId/guides', getGuidesForDestination); // Guides with matching activities
 router.get('/:destinationId/guides-by-destination', getGuidesByDestination); // Guides who specifically added this destination
