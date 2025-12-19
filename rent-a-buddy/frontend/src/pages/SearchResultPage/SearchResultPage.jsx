@@ -72,7 +72,7 @@ const SearchResultPage = () => {
   const handleBuddyClick = (buddyId) => {
     // Handle buddy click - could navigate to buddy detail page
     console.log('Buddy clicked:', buddyId);
-    // navigate(`/home/buddy-detail/${buddyId}`);
+    navigate(`/home/buddy/${buddyId}`);
   };
 
   if (loading) {

@@ -548,3 +548,35 @@
     flex-direction: column;
   }
 }
+// Thêm vào Homepage.scss
+.how-it-works-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  text-decoration: none;
+  
+  // Giữ cùng style với các nav-link khác
+  &:hover {
+    color: #4f46e5; // Hoặc màu hover của bạn
+  }
+}
+
+// Đảm bảo các nút trong nav có cùng style
+.nav {
+  button.nav-link {
+    background: none;
+    border: none;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    text-decoration: none;
+  }
+}

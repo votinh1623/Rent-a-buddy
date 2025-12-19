@@ -14,27 +14,22 @@ function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const preferenceSectionRef = useRef(null);
+  const stepsSectionRef = useRef(null); // Thêm ref cho steps section
 
   // Kiểm tra trạng thái đăng nhập khi component mount
   useEffect(() => {
     const checkLoginStatus = () => {
-      // Kiểm tra token trong cookie hoặc localStorage
       const accessToken = document.cookie
         .split('; ')
         .find(row => row.startsWith('accessToken='));
-
-      // Hoặc kiểm localStorage nếu bạn lưu ở đó
-      // const token = localStorage.getItem('accessToken');
-
       setIsLoggedIn(!!accessToken);
     };
 
     checkLoginStatus();
-
-    // Có thể thêm event listener để theo dõi thay đổi
     window.addEventListener('storage', checkLoginStatus);
     return () => window.removeEventListener('storage', checkLoginStatus);
   }, []);
+
   useEffect(() => {
     // Kiểm tra nếu URL có hash '#select-preferences'
     if (location.hash === '#select-preferences') {
@@ -44,14 +39,13 @@ function HomePage() {
             behavior: 'smooth',
             block: 'start'
           });
-
-          // Xóa hash sau khi đã scroll
           window.history.replaceState(null, '', window.location.pathname);
         }
       }, 100);
     }
   }, [location]);
-// Xóa highlight sau 5 giây
+
+  // Xóa highlight sau 5 giây
   useEffect(() => {
     if (shouldHighlightPreference) {
       const timer = setTimeout(() => {
@@ -61,22 +55,17 @@ function HomePage() {
       return () => clearTimeout(timer);
     }
   }, [shouldHighlightPreference]);
+
   const handleLogout = async () => {
     if (window.confirm("Do you want to log out?")) {
       try {
         await logout();
-        // Xóa cookies
         document.cookie = "accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         document.cookie = "refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-        // Xóa localStorage nếu có
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-
-        // Cập nhật trạng thái
         setIsLoggedIn(false);
-
         toast.success("Logged out successfully!");
         navigate("/homepage");
       } catch (err) {
@@ -89,10 +78,10 @@ function HomePage() {
   const handleLogin = () => {
     navigate("/login");
   };
- const handleFindBuddyClick = () => {
+
+  const handleFindBuddyClick = () => {
     setShouldHighlightPreference(true);
     
-    // Scroll đến section SelectByPreference
     setTimeout(() => {
       if (preferenceSectionRef.current) {
         preferenceSectionRef.current.scrollIntoView({
@@ -102,6 +91,17 @@ function HomePage() {
       }
     }, 100);
   };
+
+  // Hàm xử lý click nút "How it works"
+  const handleHowItWorksClick = () => {
+    if (stepsSectionRef.current) {
+      stepsSectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }
+  };
+
   const buddies = [
     {
       id: 1,
@@ -168,7 +168,14 @@ function HomePage() {
             Find Buddy
           </button>
           <NavLink to="/become-buddy" className="nav-link">Become Buddy</NavLink>
-          <NavLink to="/how-it-works" className="nav-link">How it works</NavLink>
+          
+          {/* Sửa NavLink thành button */}
+          <button 
+            className="nav-link how-it-works-btn"
+            onClick={handleHowItWorksClick}
+          >
+            How it works
+          </button>
 
           {/* Hiển thị nút theo trạng thái đăng nhập */}
           {!isLoggedIn ? (
@@ -190,9 +197,7 @@ function HomePage() {
 
       {/* Hero Section */}
       <main className="main">
-
         <div className="hero">
-
           <div className="hero-content">
             <h1 className="hero-title">
               Travel with a
@@ -203,10 +208,12 @@ function HomePage() {
             </p>
           </div>
         </div>
+        
         {/* Section SelectByPreference với id và ref */}
         <section id="select-preferences" ref={preferenceSectionRef}>
           <SelectByPreference />
         </section>
+        
         {/* Featured Buddy */}
         <section className="featured-section">
           <div className="section-header">
@@ -254,8 +261,9 @@ function HomePage() {
             ))}
           </div>
         </section>
-        {/* How it works */}
-        <section className="steps-section">
+        
+        {/* How it works - Thêm ref */}
+        <section className="steps-section" ref={stepsSectionRef}>
           <div className="section-header">
             <h2>How Rent a buddy Works</h2>
             <p>Three simple steps to your perfect trip</p>

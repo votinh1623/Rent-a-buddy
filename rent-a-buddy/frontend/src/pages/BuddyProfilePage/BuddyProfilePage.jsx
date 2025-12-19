@@ -590,12 +590,12 @@ const BuddyProfilePage = () => {
 
                             <h3>What to Expect</h3>
                             <ul className="expectations-list">
-                                <li>✓ Personalized itinerary based on your interests</li>
-                                <li>✓ Local insights and hidden gems</li>
-                                <li>✓ Flexible schedule and pacing</li>
-                                <li>✓ Cultural and historical context</li>
-                                <li>✓ Photo opportunities at scenic spots</li>
-                                <li>✓ Recommendations for your entire trip</li>
+                                <li>Personalized itinerary based on your interests</li>
+                                <li>Local insights and hidden gems</li>
+                                <li>Flexible schedule and pacing</li>
+                                <li>Cultural and historical context</li>
+                                <li>Photo opportunities at scenic spots</li>
+                                <li>Recommendations for your entire trip</li>
                             </ul>
                         </div>
                     )}
