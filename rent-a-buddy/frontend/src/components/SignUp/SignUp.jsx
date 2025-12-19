@@ -1,3 +1,4 @@
+// components/SignUp/SignUp.jsx
 import React, { useState } from "react";
 import Swal from "sweetalert2";
 import { toast, ToastContainer } from "react-toastify";
@@ -17,6 +18,7 @@ const Signup = () => {
   const [otp, setOtp] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -27,24 +29,42 @@ const Signup = () => {
     e.preventDefault();
     const { name, email, password, confirmPassword } = formData;
 
+    // Validate form
+    if (!name || !email || !password || !confirmPassword) {
+      toast.error("Please fill all fields!");
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast.error("Password does not match!");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters!");
       return;
     }
 
     try {
       setLoading(true);
       const res = await sendOtp({ name, email, password });
+      
       if (res.success) {
-        toast.success("Sent OTP to your email!");
+        toast.success(res.message || "OTP sent to your email!");
         setIsModalVisible(true);
-      } else if (res.message === "User already exists") {
-        toast.error("Email is already in used!");
+        setOtpSent(true);
+        
+        // For development: show OTP in console
+        if (res.otp) {
+          console.log(`Development OTP: ${res.otp}`);
+          toast.info(`Development OTP: ${res.otp}`);
+        }
       } else {
-        toast.error(res.message || "Error sending OTP, please try again!");
+        toast.error(res.message || "Error sending OTP!");
       }
     } catch (err) {
-      toast.error("Error sending OTP!");
+      console.error('Send OTP catch error:', err);
+      toast.error(err.message || "Error sending OTP. Please try again!");
     } finally {
       setLoading(false);
     }
@@ -52,7 +72,7 @@ const Signup = () => {
 
   const handleVerifyOtp = async () => {
     if (!otp.trim()) {
-      toast.error("Please ennter the OTP!");
+      toast.error("Please enter the OTP!");
       return;
     }
 
@@ -63,24 +83,47 @@ const Signup = () => {
       if (res.success) {
         setIsModalVisible(false);
         Swal.fire({
-          title: "Signup successfully!",
+          title: "Signup successful!",
           text: "You can now login.",
           icon: "success",
           confirmButtonText: "Login",
+          confirmButtonColor: "#6c086c",
         }).then(() => navigate("/login"));
       } else {
-        toast.error(res.message || "Incorrect OTP or expired!");
+        toast.error(res.message || "Invalid OTP!");
       }
     } catch (err) {
-      toast.error("Failed to verify OTP!");
+      console.error('Verify OTP catch error:', err);
+      toast.error(err.message || "Failed to verify OTP!");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleResendOtp = async () => {
+    try {
+      const res = await sendOtp(formData);
+      if (res.success) {
+        toast.success("OTP resent successfully!");
+        if (res.otp) {
+          console.log(`New OTP: ${res.otp}`);
+          toast.info(`New OTP: ${res.otp}`);
+        }
+      }
+    } catch (err) {
+      toast.error("Failed to resend OTP!");
+    }
+  };
+
   return (
     <div className="signup-container">
-      <ToastContainer position="top-right" autoClose={2000} />
+      <ToastContainer 
+        position="top-right" 
+        autoClose={3000} 
+        hideProgressBar={false}
+        closeOnClick
+        pauseOnHover
+      />
       <div className="signup-card">
         <h2>Create an account</h2>
 
@@ -93,6 +136,7 @@ const Signup = () => {
               value={formData.name}
               onChange={handleChange}
               required
+              placeholder="Enter your full name"
             />
           </div>
 
@@ -104,6 +148,7 @@ const Signup = () => {
               value={formData.email}
               onChange={handleChange}
               required
+              placeholder="Enter your email"
             />
           </div>
 
@@ -115,6 +160,8 @@ const Signup = () => {
               value={formData.password}
               onChange={handleChange}
               required
+              placeholder="At least 6 characters"
+              minLength="6"
             />
           </div>
 
@@ -126,6 +173,7 @@ const Signup = () => {
               value={formData.confirmPassword}
               onChange={handleChange}
               required
+              placeholder="Confirm your password"
             />
           </div>
 
@@ -150,24 +198,58 @@ const Signup = () => {
         onCancel={() => setIsModalVisible(false)}
         footer={null}
         centered
+        maskClosable={false}
       >
         <p>We have sent the OTP to your email, please check it!</p>
+        <p style={{ fontSize: '12px', color: '#666', marginTop: '-10px' }}>
+          (Check console for OTP in development mode)
+        </p>
+        
         <Input
           placeholder="Enter OTP"
           value={otp}
           onChange={(e) => setOtp(e.target.value)}
-          style={{ marginBottom: "15px", textAlign: "center" }}
+          style={{ 
+            marginBottom: "15px", 
+            marginTop: "15px",
+            textAlign: "center",
+            fontSize: "18px",
+            letterSpacing: "5px"
+          }}
+          maxLength={6}
         />
+        
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <Button onClick={() => setIsModalVisible(false)}>Cancel</Button>
-          <Button
-            type="primary"
-            loading={loading}
-            onClick={handleVerifyOtp}
-            style={{ backgroundColor: "#6c086c", borderColor: "#6c086c" }}
-          >
-            Confirm
-          </Button>
+          <div>
+            <Button 
+              type="text" 
+              onClick={handleResendOtp}
+              disabled={!otpSent}
+            >
+              Resend OTP
+            </Button>
+          </div>
+          
+          <div>
+            <Button 
+              onClick={() => setIsModalVisible(false)}
+              style={{ marginRight: '10px' }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              loading={loading}
+              onClick={handleVerifyOtp}
+              style={{ 
+                backgroundColor: "#6c086c", 
+                borderColor: "#6c086c",
+                minWidth: '80px'
+              }}
+            >
+              Verify
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>
