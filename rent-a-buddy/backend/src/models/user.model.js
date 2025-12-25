@@ -91,6 +91,20 @@ const userSchema = new mongoose.Schema({
     maxlength: 500,
     default: ''
   },
+  
+  // === THÊM 2 TRƯỜNG MỚI ===
+  aboutMyTours: {
+    type: String,
+    maxlength: 2000,
+    default: 'I specialize in creating memorable experiences that go beyond typical tourist attractions. Whether you\'re looking for hidden gems, local cuisine, or cultural insights, I\'ll tailor the experience to your interests.'
+  },
+  
+  whatToExpect: [{
+    type: String,
+    trim: true,
+    maxlength: 200
+  }],
+  
   hourlyRate: {
     type: Number,
     min: 0,
@@ -176,6 +190,49 @@ const userSchema = new mongoose.Schema({
   transportation: [{
     type: String,
     enum: ['Walking', 'Bicycle', 'Motorbike', 'Car', 'Public Transport', '']
+  }],
+  
+  // Thêm trường mới cho tạo tour
+  tourPackages: [{
+    name: {
+      type: String,
+      trim: true,
+      maxlength: 100
+    },
+    description: {
+      type: String,
+      maxlength: 500
+    },
+    duration: {
+      type: Number, // số giờ
+      min: 1,
+      max: 24
+    },
+    price: {
+      type: Number,
+      min: 0
+    },
+    includes: [{
+      type: String,
+      trim: true
+    }],
+    isActive: {
+      type: Boolean,
+      default: true
+    }
+  }],
+  
+  // Trường cho gallery ảnh
+  galleryImages: [{
+    url: String,
+    caption: {
+      type: String,
+      maxlength: 200
+    },
+    isFeatured: {
+      type: Boolean,
+      default: false
+    }
   }]
 }, {
   timestamps: true
@@ -187,6 +244,18 @@ userSchema.pre('save', function(next) {
     // Nếu lastOnline trong vòng 15 phút và có availability, coi như available
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
     this.isAvailableNow = this.lastOnline >= fifteenMinutesAgo;
+    
+    // Tự động tạo giá trị mặc định cho whatToExpect nếu chưa có
+    if (this.whatToExpect.length === 0 && this.isNew) {
+      this.whatToExpect = [
+        'Personalized itinerary based on your interests',
+        'Local insights and hidden gems',
+        'Flexible schedule and pacing',
+        'Cultural and historical context',
+        'Photo opportunities at scenic spots',
+        'Recommendations for your entire trip'
+      ];
+    }
   }
   next();
 });
@@ -246,6 +315,46 @@ userSchema.methods.updateAvailability = function(day, timeSlots) {
   this.availability.set(day, timeSlots);
 };
 
+// Phương thức để thêm tour package
+userSchema.methods.addTourPackage = function(packageData) {
+  if (this.role !== 'tour-guide') {
+    throw new Error('Only tour-guides can add tour packages');
+  }
+  
+  this.tourPackages.push(packageData);
+};
+
+// Phương thức để cập nhật aboutMyTours
+userSchema.methods.updateAboutMyTours = function(description) {
+  if (this.role !== 'tour-guide') {
+    throw new Error('Only tour-guides can update tour description');
+  }
+  
+  this.aboutMyTours = description;
+};
+
+// Phương thức để cập nhật whatToExpect
+userSchema.methods.updateWhatToExpect = function(expectations) {
+  if (this.role !== 'tour-guide') {
+    throw new Error('Only tour-guides can update expectations');
+  }
+  
+  this.whatToExpect = expectations;
+};
+
+// Phương thức để thêm gallery image
+userSchema.methods.addGalleryImage = function(url, caption = '', isFeatured = false) {
+  if (this.role !== 'tour-guide') {
+    throw new Error('Only tour-guides can add gallery images');
+  }
+  
+  this.galleryImages.push({
+    url,
+    caption,
+    isFeatured
+  });
+};
+
 // Middleware để mã hóa password
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
@@ -277,11 +386,41 @@ userSchema.virtual('ratingStars').get(function() {
 userSchema.virtual('isVerifiedGuide').get(function() {
   return this.role === 'tour-guide' && this.isVerified;
 });
+
+// Virtual để lấy whatToExpect dạng HTML list
+userSchema.virtual('whatToExpectHTML').get(function() {
+  if (this.role !== 'tour-guide') return null;
+  
+  return this.whatToExpect.map(item => 
+    `<li>${item}</li>`
+  ).join('');
+});
+
+// Virtual để kiểm tra xem có gallery images không
+userSchema.virtual('hasGallery').get(function() {
+  return this.role === 'tour-guide' && this.galleryImages && this.galleryImages.length > 0;
+});
+
+// Virtual để lấy featured gallery image
+userSchema.virtual('featuredGalleryImage').get(function() {
+  if (this.role !== 'tour-guide' || !this.galleryImages.length) return null;
+  
+  const featured = this.galleryImages.find(img => img.isFeatured);
+  return featured || this.galleryImages[0];
+});
+
 userSchema.virtual('destinationDetails', {
   ref: 'Destination',
   localField: 'relatedDestination',
   foreignField: '_id',
   justOne: false
+});
+
+// Virtual để lấy active tour packages
+userSchema.virtual('activeTourPackages').get(function() {
+  if (this.role !== 'tour-guide') return [];
+  
+  return this.tourPackages.filter(pkg => pkg.isActive);
 });
 
 // Để sử dụng virtual trong queries, thêm:
@@ -296,6 +435,7 @@ userSchema.index({ languages: 1 });
 userSchema.index({ relatedDestination: 1 });
 userSchema.index({ relatedActivities: 1 });
 userSchema.index({ lastOnline: -1, isAvailableNow: 1 });
+userSchema.index({ 'tourPackages.isActive': 1 });
 
 const User = mongoose.model('User', userSchema);
 
