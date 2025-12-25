@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    MapPin, 
-    Star, 
-    Calendar, 
-    Users, 
-    Globe, 
-    Navigation, 
-    Camera, 
+import {
+    MapPin,
+    Star,
+    Calendar,
+    Users,
+    Globe,
+    Navigation,
+    Camera,
     Utensils,
     Clock,
     Award,
     Heart
 } from 'lucide-react';
 import './DestinationDetail.scss';
-import { Flex } from 'antd';
+import MapComponent from '../MapComponent/MapComponent'; // Thêm import này
 
 const DestinationDetail = ({ destination, buddyName }) => {
     const [loading, setLoading] = useState(false);
     const [destinationDetails, setDestinationDetails] = useState(destination);
-    const [activeTab, setActiveTab] = useState('overview');
 
     useEffect(() => {
         const fetchDestinationDetails = async () => {
@@ -27,7 +26,7 @@ const DestinationDetail = ({ destination, buddyName }) => {
             try {
                 setLoading(true);
                 const response = await fetch(`/api/destinations/${destination._id}`);
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success) {
@@ -45,11 +44,11 @@ const DestinationDetail = ({ destination, buddyName }) => {
     }, [destination]);
 
     const getImageUrl = () => {
-        const coverImg = destinationDetails.coverImg || 
-                         destinationDetails.image || 
-                         destinationDetails.coverImage || 
-                         destinationDetails.img || 
-                         destinationDetails.thumbnail;
+        const coverImg = destinationDetails.coverImg ||
+            destinationDetails.image ||
+            destinationDetails.coverImage ||
+            destinationDetails.img ||
+            destinationDetails.thumbnail;
 
         if (coverImg && typeof coverImg === 'string' && coverImg.trim() !== '') {
             return coverImg;
@@ -99,7 +98,7 @@ const DestinationDetail = ({ destination, buddyName }) => {
     };
 
     const renderActivities = () => {
-        if (!destinationDetails.popularActivities || destinationDetails.popularActivities.length === 0) {
+        if (!destinationDetails.activities || destinationDetails.activities.length === 0) {
             return (
                 <div className="activity-tags">
                     <div className="activity-tag">
@@ -124,7 +123,7 @@ const DestinationDetail = ({ destination, buddyName }) => {
 
         return (
             <div className="activity-tags">
-                {destinationDetails.popularActivities.map((activity, index) => (
+                {destinationDetails.activities.map((activity, index) => (
                     <div key={index} className="activity-tag">
                         {typeof activity === 'object' ? (
                             <>
@@ -134,7 +133,7 @@ const DestinationDetail = ({ destination, buddyName }) => {
                         ) : (
                             <>
                                 <Camera size={16} />
-                                {activity}
+                                Activity
                             </>
                         )}
                     </div>
@@ -184,13 +183,16 @@ const DestinationDetail = ({ destination, buddyName }) => {
                     src={getImageUrl()}
                     alt={destinationDetails.name}
                     className="destination-hero-image"
+                    onError={(e) => {
+                        e.target.src = `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(destinationDetails.name)},tourism`;
+                    }}
                 />
                 <div className="destination-hero-overlay">
                     <h1 className="destination-title">{destinationDetails.name}</h1>
                     <div className="destination-location">
                         <MapPin size={20} />
                         <span>
-                            {destinationDetails.city || 'Unknown City'}
+                            {destinationDetails.city || 'Da Nang'}
                             {destinationDetails.city && destinationDetails.country ? ', ' : ''}
                             {destinationDetails.country || 'Vietnam'}
                         </span>
@@ -198,7 +200,8 @@ const DestinationDetail = ({ destination, buddyName }) => {
                 </div>
                 <div className="destination-badges">
                     {destinationDetails.isPopular && (
-                        <div className="popular-badge"> Popular Destination
+                        <div className="popular-badge">
+                            <Star size={14} /> Popular Destination
                         </div>
                     )}
                     {buddyName && (
@@ -221,8 +224,8 @@ const DestinationDetail = ({ destination, buddyName }) => {
                                 About This Destination
                             </h2>
                             <div className="description">
-                                {destinationDetails.description || 
-                                    `${destinationDetails.name} is a beautiful destination in ${destinationDetails.city || 'Vietnam'} that offers unique experiences for travelers. With ${buddyName} as your guide, you'll discover hidden gems, local culture, and create unforgettable memories.`}
+                                {destinationDetails.description ||
+                                    `${destinationDetails.name} is a beautiful destination in ${destinationDetails.city || 'Da Nang'} that offers unique experiences for travelers. With ${buddyName} as your guide, you'll discover hidden gems, local culture, and create unforgettable memories.`}
                             </div>
                         </div>
 
@@ -255,10 +258,14 @@ const DestinationDetail = ({ destination, buddyName }) => {
                             </h3>
                             <div className="info-list">
                                 <div className="info-item">
-                                    <span className="info-label">Location</span>
+                                    <span className="info-label">City</span>
                                     <span className="info-value">
-                                        {destinationDetails.city || 'Various'} • {destinationDetails.country || 'VN'}
+                                        {destinationDetails.city || 'Da Nang'}
                                     </span>
+                                </div>
+                                <div className="info-item">
+                                    <span className="info-label">Country</span>
+                                    <span className="info-value">{destinationDetails.country || 'Vietnam'}</span>
                                 </div>
                                 <div className="info-item">
                                     <span className="info-label">Best Time</span>
@@ -267,10 +274,6 @@ const DestinationDetail = ({ destination, buddyName }) => {
                                 <div className="info-item">
                                     <span className="info-label">Tour Type</span>
                                     <span className="info-value">Private Guide</span>
-                                </div>
-                                <div className="info-item">
-                                    <span className="info-label">Languages</span>
-                                    <span className="info-value">English, Vietnamese</span>
                                 </div>
                             </div>
                         </div>
@@ -284,17 +287,22 @@ const DestinationDetail = ({ destination, buddyName }) => {
                             {renderStats()}
                         </div>
 
-                        {/* Tags */}
-                        {destinationDetails.tags && destinationDetails.tags.length > 0 && (
+                        {/* Coordinates */}
+                        {destinationDetails.location && (
                             <div className="info-card">
                                 <h3 className="info-title">
-                                    <Award size={18} />
-                                    Tags
+                                    <Navigation size={18} />
+                                    Coordinates
                                 </h3>
-                                <div className="tags-container">
-                                    {destinationDetails.tags.map((tag, index) => (
-                                        <span key={index} className="tag">{tag}</span>
-                                    ))}
+                                <div className="coordinates-info">
+                                    <div className="coordinate-item">
+                                        <span className="coord-label">Latitude:</span>
+                                        <span className="coord-value">{destinationDetails.location.latitude?.toFixed(6) || 'N/A'}</span>
+                                    </div>
+                                    <div className="coordinate-item">
+                                        <span className="coord-label">Longitude:</span>
+                                        <span className="coord-value">{destinationDetails.location.longitude?.toFixed(6) || 'N/A'}</span>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -316,12 +324,49 @@ const DestinationDetail = ({ destination, buddyName }) => {
 
             {/* Map Section */}
             <div className="destination-map">
-                <div style={{ textAlign: 'center' }}>
-                    <MapPin size={48} color="#667eea" />
-                    <p style={{ marginTop: '10px' }}>Interactive map of {destinationDetails.name}</p>
-                    <p style={{ fontSize: '14px', color: '#888' }}>
-                        View detailed location on map
-                    </p>
+                <MapComponent
+                    destination={destinationDetails}
+                    height="400px"
+                    interactive={true}
+                    showControls={true}
+                />
+            </div>
+
+            {/* Tips Section */}
+            <div className="tips-section">
+                <h2 className="section-title">
+                    <Award size={20} />
+                    Travel Tips
+                </h2>
+                <div className="tips-grid">
+                    <div className="tip-card">
+                        <div className="tip-icon">👟</div>
+                        <div className="tip-content">
+                            <h4>Comfortable Shoes</h4>
+                            <p>Wear comfortable walking shoes as there might be a lot of walking involved.</p>
+                        </div>
+                    </div>
+                    <div className="tip-card">
+                        <div className="tip-icon">🌞</div>
+                        <div className="tip-content">
+                            <h4>Sun Protection</h4>
+                            <p>Bring sunscreen, hat, and sunglasses to protect from the sun.</p>
+                        </div>
+                    </div>
+                    <div className="tip-card">
+                        <div className="tip-icon">💧</div>
+                        <div className="tip-content">
+                            <h4>Stay Hydrated</h4>
+                            <p>Carry water with you to stay hydrated throughout the tour.</p>
+                        </div>
+                    </div>
+                    <div className="tip-card">
+                        <div className="tip-icon">📸</div>
+                        <div className="tip-content">
+                            <h4>Camera Ready</h4>
+                            <p>Don't forget your camera to capture beautiful moments.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
