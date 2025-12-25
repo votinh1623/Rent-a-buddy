@@ -4,7 +4,6 @@ import { login } from "@/service/authService";
 import Swal from "sweetalert2";
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import "./Login.scss";
-// import GuestChatWidget from "../../GuestChatWidget/GuestChatWidget";
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -26,31 +25,79 @@ const Login = () => {
         password: formData.password,
       });
 
-      if (res._id) {
-        Swal.fire({
-          title: "Log In successfully!",
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-        navigate("/home/homepage");
-      } else if (res.message === "Your account has been banned") {
+      console.log("Login response:", res); // Debug log
+
+      // Xử lý cả 2 cấu trúc response:
+      // 1. Cấu trúc cũ: res._id tồn tại
+      // 2. Cấu trúc mới: res.success = true và có res.data.user
+      
+      let userData = null;
+      let accessToken = null;
+
+      // Cấu trúc mới
+      if (res && res.success && res.data && res.data.user) {
+        userData = res.data.user;
+        accessToken = res.data.token;
+      }
+      // Cấu trúc cũ
+      else if (res && res._id) {
+        userData = {
+          _id: res._id,
+          name: res.name || formData.email.split('@')[0],
+          email: res.email || formData.email,
+          role: res.role || 'traveller',
+          pfp: res.pfp || '',
+          isVerified: res.isVerified || false
+        };
+        accessToken = res.token || '';
+      }
+      // Lỗi từ server
+      else if (res && res.message === "Your account has been banned") {
         Swal.fire({
           title: "Banned account",
           text: "Your account has been banned.",
           icon: "warning",
           confirmButtonText: "Understood",
         });
-      } else {
+        return;
+      }
+      // Lỗi khác
+      else {
         Swal.fire({
           title: "Log In failed",
-          text: res.message || "Wrong email or password",
+          text: res?.message || "Wrong email or password",
           icon: "error",
         });
+        return;
       }
-    } catch (err) {
+
+      // Lưu user data vào localStorage
+      if (userData) {
+        localStorage.setItem('user', JSON.stringify(userData));
+        if (accessToken) {
+          localStorage.setItem('accessToken', accessToken);
+        }
+        
+        console.log("User saved to localStorage:", userData); // Debug
+      }
+
       Swal.fire({
-        title: "Error connecting to the server!",
+        title: "Log In successfully!",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      // Redirect về trang redirect để xử lý role
+      setTimeout(() => {
+        navigate("/redirect");
+      }, 1000);
+
+    } catch (err) {
+      console.error("Login error:", err);
+      Swal.fire({
+        title: "Login failed",
+        text: err.message || "Wrong email or password",
         icon: "error",
       });
     } finally {
@@ -62,7 +109,9 @@ const Login = () => {
     <div className="login-container">
       <div className="login-card">
         <h2>Welcome Back</h2>
-        <p className="login-subtitle">Log In to explore the available buddies for the best travel experience</p>
+        <p className="login-subtitle">
+          Log In to explore the available buddies for the best travel experience
+        </p>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -74,6 +123,7 @@ const Login = () => {
               onChange={handleChange}
               placeholder="Enter your email"
               required
+              disabled={loading}
             />
           </div>
 
@@ -87,10 +137,11 @@ const Login = () => {
                 onChange={handleChange}
                 placeholder="Enter your password"
                 required
+                disabled={loading}
               />
               <span
                 className="toggle-password"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => !loading && setShowPassword(!showPassword)}
               >
                 {showPassword ? (
                   <EyeTwoTone twoToneColor="#3535d3ff" />
@@ -111,7 +162,6 @@ const Login = () => {
           <NavLink to="/signup">Sign Up now</NavLink>
         </div>
       </div>
-      {/* <GuestChatWidget /> */}
     </div>
   );
 };

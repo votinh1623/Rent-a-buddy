@@ -10,6 +10,7 @@ import SelectByPreference from '../../components/SelectByPreference/SelectByPref
 function HomePage() {
   const [currentBuddy, setCurrentBuddy] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState(null);
   const [shouldHighlightPreference, setShouldHighlightPreference] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,16 +20,34 @@ function HomePage() {
   // Kiểm tra trạng thái đăng nhập khi component mount
   useEffect(() => {
     const checkLoginStatus = () => {
+      // Kiểm token trong cookie hoặc localStorage
       const accessToken = document.cookie
         .split('; ')
         .find(row => row.startsWith('accessToken='));
-      setIsLoggedIn(!!accessToken);
-    };
 
+      // Kiểm user data trong localStorage
+      const userData = localStorage.getItem('user');
+      
+      setIsLoggedIn(!!accessToken);
+      
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          setUserRole(user.role);
+          
+          // Nếu user là tour-guide, redirect đến buddy home
+          if (user.role === 'tour-guide' && location.pathname === '/home/homepage') {
+            navigate('/home/buddy-home');
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+    };
     checkLoginStatus();
     window.addEventListener('storage', checkLoginStatus);
     return () => window.removeEventListener('storage', checkLoginStatus);
-  }, []);
+  }, [navigate, location]);
 
   useEffect(() => {
     // Kiểm tra nếu URL có hash '#select-preferences'
@@ -78,7 +97,15 @@ function HomePage() {
   const handleLogin = () => {
     navigate("/login");
   };
-
+// Nếu là buddy, hiển thị link đến buddy home
+  const getHomeLink = () => {
+    if (userRole === 'tour-guide') {
+      return '/home/buddy-home';
+    } else if (userRole === 'traveller') {
+      return '/home/traveller-home';
+    }
+    return '/home/homepage';
+  };
   const handleFindBuddyClick = () => {
     setShouldHighlightPreference(true);
     
@@ -161,12 +188,27 @@ function HomePage() {
           <span className="logo-primary">Rent a buddy</span>
         </div>
         <nav className="nav">
-          <button 
-            className="nav-link find-buddy-btn"
-            onClick={handleFindBuddyClick}
-          >
-            Find Buddy
-          </button>
+          <NavLink to={getHomeLink()} className="nav-link">
+            {userRole === 'tour-guide' ? 'Dashboard' : 'Home'}
+          </NavLink>
+          
+          {userRole === 'tour-guide' && (
+            <NavLink to="/home/buddy-home" className="nav-link">
+              My Dashboard
+            </NavLink>
+          )}
+          
+          {userRole === 'traveller' && (
+            <>
+              <NavLink to="/home/select-preferences" className="nav-link">
+                Find Buddy
+              </NavLink>
+              <NavLink to="/home/search-result" className="nav-link">
+                Browse Buddies
+              </NavLink>
+            </>
+          )}
+          
           <NavLink to="/become-buddy" className="nav-link">Become Buddy</NavLink>
           
           {/* Sửa NavLink thành button */}
