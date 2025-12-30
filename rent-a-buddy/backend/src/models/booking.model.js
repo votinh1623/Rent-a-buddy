@@ -1,3 +1,4 @@
+// backend/src/models/booking.model.js (updated)
 import mongoose from 'mongoose';
 
 const bookingSchema = new mongoose.Schema({
@@ -67,7 +68,31 @@ const bookingSchema = new mongoose.Schema({
     default: 'pending'
   },
   paymentMethod: String,
-  transactionId: String
+  transactionId: String,
+  
+  // Optional: Add review field to booking
+  review: {
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5
+    },
+    comment: {
+      type: String,
+      maxlength: 500
+    },
+    anonymous: {
+      type: Boolean,
+      default: false
+    },
+    createdAt: {
+      type: Date
+    }
+  },
+  hasReview: {
+    type: Boolean,
+    default: false
+  }
 }, {
   timestamps: true
 });
@@ -77,6 +102,44 @@ bookingSchema.index({ traveller: 1, status: 1 });
 bookingSchema.index({ buddy: 1, status: 1 });
 bookingSchema.index({ startDate: 1 });
 bookingSchema.index({ status: 1, bookingDate: 1 });
+bookingSchema.index({ 'review.rating': 1 });
+
+// Virtual for formatted dates
+bookingSchema.virtual('formattedStartDate').get(function() {
+  return this.startDate.toLocaleDateString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+});
+
+// Virtual for checking if booking is upcoming
+bookingSchema.virtual('isUpcoming').get(function() {
+  return this.status === 'confirmed' && this.startDate > new Date();
+});
+
+// Virtual for checking if booking is in progress
+bookingSchema.virtual('isInProgress').get(function() {
+  const now = new Date();
+  return this.status === 'confirmed' && 
+         this.startDate <= now && 
+         (!this.endDate || this.endDate >= now);
+});
+
+// Pre-save middleware
+bookingSchema.pre('save', function(next) {
+  if (this.startDate && this.duration && !this.endDate) {
+    this.endDate = new Date(this.startDate.getTime() + this.duration * 60 * 60 * 1000);
+  }
+  
+  if (this.review && this.review.rating) {
+    this.hasReview = true;
+  }
+  
+  next();
+});
 
 const Booking = mongoose.model('Booking', bookingSchema);
+
 export default Booking;
