@@ -10,3 +10,4 @@
 
 # Check package.json for node modules used
 # 05/12/2025 problem: Catastrophic React Flaw (CVE-2025-55182, CVSS 10.0) Allows Unauthenticated RCE on Next.js and Server Components - Fixed(Using React v19.2.1)
+# 30/12/2025 problem: mongobleed.py - CVE-2025-14847 MongoDB Memory Leak Exploit - Does NOT affect MongoDB Atlas
