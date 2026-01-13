@@ -1,0 +1,234 @@
+// src/components/StatsCard/StatsCard.scss
+.stats-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+  
+  .stat-decoration {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 80px;
+    height: 80px;
+    border-radius: 0 16px 0 0;
+    opacity: 0.1;
+  }
+  
+  .stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    color: white;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .stat-content {
+    position: relative;
+    z-index: 1;
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem 0;
+      color: #2d3748;
+    }
+    
+    .stat-title {
+      font-size: 0.95rem;
+      color: #718096;
+      margin: 0 0 0.75rem 0;
+    }
+    
+    .stat-trend {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+  }
+  
+  // Color variants
+  &.earning {
+    .stat-icon {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    }
+    
+    .stat-decoration {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    }
+    
+    .stat-trend {
+      background: rgba(72, 187, 120, 0.1);
+      color: #38a169;
+    }
+  }
+  
+  &.tours {
+    .stat-icon {
+      background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    }
+    
+    .stat-decoration {
+      background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    }
+    
+    .stat-trend {
+      background: rgba(66, 153, 225, 0.1);
+      color: #3182ce;
+    }
+  }
+  
+  &.rating {
+    .stat-icon {
+      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+    }
+    
+    .stat-decoration {
+      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+    }
+    
+    .stat-trend {
+      background: rgba(246, 173, 85, 0.1);
+      color: #ed8936;
+    }
+  }
+  
+  &.response {
+    .stat-icon {
+      background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);
+    }
+    
+    .stat-decoration {
+      background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);
+    }
+    
+    .stat-trend {
+      background: rgba(159, 122, 234, 0.1);
+      color: #805ad5;
+    }
+  }
+  
+  &.primary {
+    .stat-icon {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .stat-decoration {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .stat-trend {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+    }
+  }
+  
+  // Loading state
+  &.loading {
+    .skeleton-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+      margin-bottom: 1rem;
+    }
+    
+    .skeleton-content {
+      .skeleton-line {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+        border-radius: 4px;
+        
+        &.large {
+          height: 32px;
+          width: 100px;
+          margin-bottom: 8px;
+        }
+        
+        &.medium {
+          height: 20px;
+          width: 120px;
+          margin-bottom: 8px;
+        }
+        
+        &.small {
+          height: 16px;
+          width: 80px;
+        }
+      }
+    }
+  }
+  
+  // Error state
+  &.error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    background: rgba(245, 101, 101, 0.05);
+    border: 1px solid rgba(245, 101, 101, 0.2);
+    
+    .error-content {
+      text-align: center;
+      
+      .error-icon {
+        width: 40px;
+        height: 40px;
+        background: #f56565;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.75rem;
+        font-weight: bold;
+      }
+      
+      .error-text {
+        font-size: 0.9rem;
+        color: #718096;
+        margin: 0 0 0.75rem 0;
+      }
+      
+      .retry-btn {
+        padding: 0.5rem 1rem;
+        background: #f56565;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          background: #e53e3e;
+        }
+      }
+    }
+  }
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

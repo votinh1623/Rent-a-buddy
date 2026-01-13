@@ -1,6 +1,5 @@
 // backend/src/routes/booking.routes.js
 import express from 'express';
-import Booking from '../models/booking.model.js';
 import {
   createBooking,
   getBookingById,
@@ -9,16 +8,16 @@ import {
   getBuddyAvailability,
   addReviewToBooking,
   getBuddyStatistics,
-  updateBookingPayment
+  updateBookingPayment,
+  getUpcomingBookings, // Thêm hàm này
+  getBookingStats // Thêm hàm này
 } from '../controllers/booking.controller.js';
 import { auth, adminAuth } from '../middleware/auth.middleware.js';
+import Booking from '../models/booking.model.js';
 
 const router = express.Router();
 
-// Public routes
-router.get('/availability/:buddyId', getBuddyAvailability);
-
-// Middleware to check booking ownership
+// Middleware để check booking ownership (đặt ở đây để có thể dùng Booking model)
 const checkBookingOwnership = async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.id);
@@ -125,51 +124,44 @@ const checkReviewAuthor = async (req, res, next) => {
   }
 };
 
-// Import Booking model dynamically
-const getBookingModel = async () => {
-  return (await import('../models/booking.model.js')).default;
-};
+// =============== PUBLIC ROUTES ===============
+router.get('/availability/:buddyId', getBuddyAvailability);
 
-// Protected routes
+// =============== PROTECTED ROUTES ===============
 router.use(auth);
 
-// Create booking (travellers and guests only)
+// Các routes cụ thể PHẢI đứng trước routes có tham số động
+// 1. Routes không có tham số (cụ thể)
 router.post('/', isTraveller, createBooking);
+router.get('/my-bookings/upcoming', getUpcomingBookings); // Thêm route này
+router.get('/stats/my', getBookingStats); // Thêm route này
 
-// Get booking by ID
-router.get('/:id', async (req, res, next) => {
-  const Booking = await getBookingModel();
-  req.Booking = Booking;
-  await checkBookingOwnership(req, res, next);
-}, getBookingById);
-
-// Get user's bookings
-router.get('/user/:userId', checkUserIdAccess, getUserBookings);
-
-// Update booking status
-router.patch('/:id/status', async (req, res, next) => {
-  const Booking = await getBookingModel();
-  req.Booking = Booking;
-  await checkBookingOwnership(req, res, next);
-}, updateBookingStatus);
-
-// Update payment status
-router.patch('/:id/payment', async (req, res, next) => {
-  const Booking = await getBookingModel();
-  req.Booking = Booking;
-  await checkBookingOwnership(req, res, next);
-}, updateBookingPayment);
-
-// Add review
+// 2. Routes có tham số (đứng sau)
+router.get('/:id', checkBookingOwnership, getBookingById);
+router.patch('/:id/status', checkBookingOwnership, updateBookingStatus);
+router.patch('/:id/payment', checkBookingOwnership, updateBookingPayment);
 router.post('/:id/review', checkReviewAuthor, addReviewToBooking);
 
-// Get buddy statistics
+// 3. Routes có tham số user ID
+router.get('/user/:userId', checkUserIdAccess, getUserBookings);
 router.get('/buddy/:buddyId/stats', checkBuddyStatsAccess, getBuddyStatistics);
 
-// Admin routes
+// 4. Shortcut routes cho người dùng hiện tại
+router.get('/my-bookings/buddy', isBuddy, (req, res) => {
+  req.params.userId = req.user._id;
+  req.query.role = 'buddy';
+  getUserBookings(req, res);
+});
+
+router.get('/my-bookings/traveller', isTraveller, (req, res) => {
+  req.params.userId = req.user._id;
+  req.query.role = 'traveller';
+  getUserBookings(req, res);
+});
+
+// 5. Admin routes
 router.get('/', adminAuth, async (req, res) => {
   try {
-    const Booking = await getBookingModel();
     const { status, startDate, endDate, page = 1, limit = 20 } = req.query;
     
     let query = {};
@@ -219,20 +211,6 @@ router.get('/', adminAuth, async (req, res) => {
       error: error.message
     });
   }
-});
-
-// Route for buddies to get their bookings
-router.get('/my-bookings/buddy', isBuddy, (req, res) => {
-  req.params.userId = req.user._id;
-  req.query.role = 'buddy';
-  getUserBookings(req, res);
-});
-
-// Route for travellers to get their bookings
-router.get('/my-bookings/traveller', isTraveller, (req, res) => {
-  req.params.userId = req.user._id;
-  req.query.role = 'traveller';
-  getUserBookings(req, res);
 });
 
 export default router;

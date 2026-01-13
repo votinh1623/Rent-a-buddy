@@ -13,9 +13,19 @@ import destinationRoutes from './routes/destination.route.js';
 import buddyRoutes from './routes/buddy.route.js';
 import travellerRoutes from './routes/traveller.route.js';
 import bookingRoutes from './routes/booking.route.js'
+import http from 'http';
+import { initializeSocket } from './socket/socketHandler.js';
+import conversationRoutes from './routes/conversation.route.js';
 import { createServer } from "http";
 import { Server } from "socket.io";
 const app = express();
+const server = http.createServer(app);
+
+// Initialize WebSocket
+const io = initializeSocket(server);
+
+// Make io accessible to routes if needed
+app.set('io', io);
 
 console.log('Environment variables loaded:');
 console.log('ACCESS_TOKEN_SECRET:', process.env.ACCESS_TOKEN_SECRET ? '***SET***' : '***NOT SET***');
@@ -43,6 +53,7 @@ app.use(cors({
 // });
 
 // Routes
+app.use('/api/conversations', conversationRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/travellers', travellerRoutes);
 app.use('/api/activities', activityRoutes);

@@ -1,0 +1,201 @@
+// src/components/BookingCard/BookingCard.scss
+.booking-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  
+  &:hover {
+    border-color: #667eea;
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+    transform: translateY(-2px);
+  }
+  
+  &.compact {
+    padding: 1rem;
+    
+    .booking-content {
+      margin-bottom: 0.75rem;
+    }
+    
+    .booking-footer {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+    }
+  }
+  
+  .booking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    
+    .booking-status {
+      .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: capitalize;
+        
+        &.confirmed {
+          background: rgba(72, 187, 120, 0.1);
+          color: #38a169;
+        }
+        
+        &.pending {
+          background: rgba(237, 137, 54, 0.1);
+          color: #dd6b20;
+        }
+        
+        &.completed {
+          background: rgba(102, 126, 234, 0.1);
+          color: #667eea;
+        }
+        
+        &.cancelled {
+          background: rgba(245, 101, 101, 0.1);
+          color: #f56565;
+        }
+      }
+    }
+    
+    .booking-date {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: #718096;
+      
+      .date-icon {
+        font-size: 0.9rem;
+        color: #a0aec0;
+      }
+    }
+  }
+  
+  .booking-content {
+    margin-bottom: 1rem;
+    
+    .guest-name {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.1rem;
+      color: #2d3748;
+      margin: 0 0 1rem 0;
+      
+      .guest-icon {
+        color: #667eea;
+        font-size: 0.9rem;
+      }
+    }
+    
+    .booking-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      
+      .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: #718096;
+        
+        .detail-icon {
+          color: #a0aec0;
+          font-size: 0.8rem;
+        }
+        
+        .detail-text {
+          color: #2d3748;
+          font-weight: 500;
+        }
+        
+        .location-text,
+        .duration-text {
+          color: #718096;
+          font-weight: normal;
+        }
+      }
+      
+      .special-requests {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px dashed #e2e8f0;
+        
+        .requests-label {
+          display: block;
+          font-size: 0.8rem;
+          color: #718096;
+          margin-bottom: 0.25rem;
+          font-weight: 500;
+        }
+        
+        .requests-text {
+          font-size: 0.85rem;
+          color: #2d3748;
+          margin: 0;
+          line-height: 1.4;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      }
+    }
+  }
+  
+  .booking-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+    
+    .booking-price {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #667eea;
+    }
+    
+    .booking-actions {
+      .view-details-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          background: #667eea;
+          color: white;
+          transform: translateX(4px);
+        }
+        
+        .arrow-icon {
+          font-size: 0.8rem;
+          transition: transform 0.3s ease;
+        }
+        
+        &:hover .arrow-icon {
+          transform: translateX(2px);
+        }
+      }
+    }
+  }
+}

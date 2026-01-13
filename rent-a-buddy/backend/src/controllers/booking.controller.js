@@ -714,3 +714,140 @@ export const updateBookingPayment = async (req, res) => {
     });
   }
 };
+export const getUpcomingBookings = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    const now = new Date();
+    
+    let query = {};
+    
+    if (user.role === 'tour-guide') {
+      // For buddies: get upcoming bookings where they are the guide
+      query = {
+        buddy: userId,
+        status: { $in: ['pending', 'confirmed'] },
+        startDate: { $gte: now }
+      };
+    } else {
+      // For travellers/guests: get their own upcoming bookings
+      query = {
+        traveller: userId,
+        status: { $in: ['pending', 'confirmed'] },
+        startDate: { $gte: now }
+      };
+    }
+    
+    const limit = parseInt(req.query.limit) || 10;
+    
+    const bookings = await Booking.find(query)
+      .populate(user.role === 'tour-guide' ? 'traveller' : 'buddy', 'name avatar')
+      .populate('destination', 'name city')
+      .sort({ startDate: 1 })
+      .limit(limit)
+      .lean();
+    
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings.map(booking => ({
+        id: booking._id,
+        travellerName: booking.traveller?.name || 'Guest',
+        travellerAvatar: booking.traveller?.avatar,
+        buddyName: booking.buddy?.name || 'Guide',
+        buddyAvatar: booking.buddy?.avatar,
+        destination: booking.destination?.name || 'Tour',
+        city: booking.destination?.city || '',
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        duration: booking.duration,
+        totalPrice: booking.totalPrice,
+        status: booking.status,
+        specialRequests: booking.specialRequests
+      }))
+    });
+    
+  } catch (error) {
+    console.error('Error fetching upcoming bookings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching upcoming bookings',
+      error: error.message
+    });
+  }
+};
+
+// Get booking statistics for current user
+export const getBookingStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    
+    let matchQuery = {};
+    
+    if (user.role === 'tour-guide') {
+      matchQuery.buddy = userId;
+    } else {
+      matchQuery.traveller = userId;
+    }
+    
+    const stats = await Booking.aggregate([
+      {
+        $match: matchQuery
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalRevenue: { $sum: '$totalPrice' }
+        }
+      }
+    ]);
+    
+    // Format stats
+    const formattedStats = {
+      total: 0,
+      totalRevenue: 0,
+      byStatus: {}
+    };
+    
+    stats.forEach(stat => {
+      formattedStats.total += stat.count;
+      formattedStats.totalRevenue += stat.totalRevenue;
+      formattedStats.byStatus[stat._id] = {
+        count: stat.count,
+        revenue: stat.totalRevenue
+      };
+    });
+    
+    // Add additional stats
+    const now = new Date();
+    const upcomingCount = await Booking.countDocuments({
+      ...matchQuery,
+      status: { $in: ['pending', 'confirmed'] },
+      startDate: { $gte: now }
+    });
+    
+    const pastCount = await Booking.countDocuments({
+      ...matchQuery,
+      startDate: { $lt: now }
+    });
+    
+    formattedStats.upcomingCount = upcomingCount;
+    formattedStats.pastCount = pastCount;
+    formattedStats.userRole = user.role;
+    
+    res.status(200).json({
+      success: true,
+      data: formattedStats
+    });
+    
+  } catch (error) {
+    console.error('Error fetching booking stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching booking statistics',
+      error: error.message
+    });
+  }
+};
