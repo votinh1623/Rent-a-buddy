@@ -25,7 +25,7 @@ const DestinationDetail = ({ destination, buddyName }) => {
 
             try {
                 setLoading(true);
-                const response = await fetch(`/api/destinations/${destination._id}`);
+                const response = await fetch(`/api/destinations/by-ids/${destination._id}`);
 
                 if (response.ok) {
                     const data = await response.json();
