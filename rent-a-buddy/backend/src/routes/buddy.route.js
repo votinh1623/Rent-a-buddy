@@ -1,26 +1,45 @@
 // backend/src/routes/buddy.routes.js
 import express from 'express';
-import { 
-  getCurrentBuddyProfile,
+import {
+  getAllBuddies,
   getBuddyById,
+  updateBuddy,
+  deleteBuddy,
+  getBuddiesByDestination,
+  getBuddiesByActivity,
+  getOnlineBuddies,
+  registerAsBuddy,
+  getCurrentBuddyProfile,
   updateBuddyAvailability,
   updateBuddyProfile,
   getAvailableBuddies,
   updateBuddySchedule,
   addTourPackage,
   getBuddyEarnings,
-  getBuddyStats
+  getBuddyStats,
+  searchBuddies  // Hàm này có trong buddy controller
 } from '../controllers/buddy.controller.js';
-import { auth, guideAuth } from '../middleware/auth.middleware.js';
+import { auth, guideAuth, adminAuth } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 // =============== PUBLIC ROUTES ===============
 // ĐẶT CÁC ROUTES CỤ THỂ TRƯỚC ROUTES CÓ THAM SỐ
-router.get('/available', getAvailableBuddies);
 
-// =============== PROTECTED ROUTES (CHO BUDDY) ===============
-// Tạo một router con cho các routes cần authentication
+// 1. Route cụ thể (không có tham số) - PHẢI ĐẶT TRƯỚC
+router.get('/search', searchBuddies); // ĐẶT ĐẦU TIÊN
+router.get('/available', getAvailableBuddies);
+router.get('/all', getAllBuddies);
+router.get('/online', getOnlineBuddies);
+
+// 2. Routes với tham số cố định - ĐẶT TIẾP THEO
+router.get('/destination/:destinationId', getBuddiesByDestination);
+router.get('/activity/:activityId', getBuddiesByActivity);
+
+// 3. Route đăng ký (POST) - không xung đột với GET
+router.post('/register', auth, registerAsBuddy);
+
+// =============== PROTECTED BUDDY ROUTES (CHO GUIDE) ===============
 const buddyRouter = express.Router();
 
 // Áp dụng auth middleware cho tất cả routes trong buddyRouter
@@ -46,11 +65,12 @@ buddyRouter.get('/earnings', (req, res) => {
 router.use('/my', buddyRouter);
 
 // =============== PUBLIC BUDDY PROFILE ROUTES ===============
-// Route để xem profile của buddy bất kỳ (public)
-router.get('/:buddyId', getBuddyById);
+// 4. Route profile public - ĐẶT SAU CÁC ROUTES CỤ THỂ
+// XÓA route trùng lặp dưới đây
+router.get('/:id', getBuddyById); // Chỉ giữ 1 route này
 
 // =============== ADMIN/SPECIFIC BUDDY ROUTES ===============
-// Routes có tham số buddyId (cần auth)
+// 5. Routes có tham số khác - ĐẶT SAU CÙNG
 router.patch('/:buddyId/availability', auth, (req, res, next) => {
   // Kiểm tra quyền: admin hoặc chính buddy đó
   if (req.user.role !== 'admin' && req.params.buddyId !== req.user._id.toString()) {
@@ -72,5 +92,9 @@ router.get('/:buddyId/earnings', auth, (req, res, next) => {
   }
   next();
 }, getBuddyEarnings);
+
+// 6. Các route khác - ĐẶT CUỐI
+router.put('/:id', auth, updateBuddy);
+router.delete('/:id', auth, adminAuth, deleteBuddy);
 
 export default router;
