@@ -912,7 +912,7 @@ export const getBuddyById = async (req, res) => {
             isActive: true
         })
             .populate('relatedActivities', 'name description price duration requirements')
-            .populate('relatedDestination', 'name description city country images')
+            .populate('relatedDestination', 'name description city country coverImg location')
             .select('-password -verificationDocuments');
 
         if (!buddy) {
