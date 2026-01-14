@@ -13,6 +13,7 @@ import destinationRoutes from './routes/destination.route.js';
 import buddyRoutes from './routes/buddy.route.js';
 import travellerRoutes from './routes/traveller.route.js';
 import bookingRoutes from './routes/booking.route.js'
+import messageRoutes from './routes/message.route.js'
 import http from 'http';
 import { initializeSocket } from './socket/socketHandler.js';
 import conversationRoutes from './routes/conversation.route.js';
@@ -53,13 +54,15 @@ app.use(cors({
 // });
 
 // Routes
-app.use('/api/conversations', conversationRoutes);
+
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/travellers', travellerRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/destinations', destinationRoutes);
 app.use('/api/buddies', buddyRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/conversations', conversationRoutes);
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });

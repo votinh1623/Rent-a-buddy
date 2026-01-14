@@ -1,6 +1,6 @@
 // backend/src/socket/socketHandler.js
 import { Server } from 'socket.io';
-import { Conversation, Message } from '../models/conversation.model.js';
+// import { Conversation, Message } from '../models/conversation.model.js';
 
 // Store online users
 const onlineUsers = new Map(); // userId -> socketId
