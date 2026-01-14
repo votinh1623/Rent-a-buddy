@@ -391,6 +391,11 @@ userSchema.virtual('isVerifiedGuide').get(function() {
 userSchema.virtual('whatToExpectHTML').get(function() {
   if (this.role !== 'tour-guide') return null;
   
+  // THÊM KIỂM TRA: Nếu whatToExpect không tồn tại hoặc không phải array
+  if (!this.whatToExpect || !Array.isArray(this.whatToExpect)) {
+    return '';
+  }
+  
   return this.whatToExpect.map(item => 
     `<li>${item}</li>`
   ).join('');
@@ -398,14 +403,23 @@ userSchema.virtual('whatToExpectHTML').get(function() {
 
 // Virtual để kiểm tra xem có gallery images không
 userSchema.virtual('hasGallery').get(function() {
-  return this.role === 'tour-guide' && this.galleryImages && this.galleryImages.length > 0;
+  return this.role === 'tour-guide' && 
+         this.galleryImages && 
+         Array.isArray(this.galleryImages) && 
+         this.galleryImages.length > 0;
 });
+
 
 // Virtual để lấy featured gallery image
 userSchema.virtual('featuredGalleryImage').get(function() {
-  if (this.role !== 'tour-guide' || !this.galleryImages.length) return null;
+  if (this.role !== 'tour-guide' || 
+      !this.galleryImages || 
+      !Array.isArray(this.galleryImages) || 
+      this.galleryImages.length === 0) {
+    return null;
+  }
   
-  const featured = this.galleryImages.find(img => img.isFeatured);
+  const featured = this.galleryImages.find(img => img && img.isFeatured);
   return featured || this.galleryImages[0];
 });
 
@@ -418,11 +432,14 @@ userSchema.virtual('destinationDetails', {
 
 // Virtual để lấy active tour packages
 userSchema.virtual('activeTourPackages').get(function() {
-  if (this.role !== 'tour-guide') return [];
+  if (this.role !== 'tour-guide' || 
+      !this.tourPackages || 
+      !Array.isArray(this.tourPackages)) {
+    return [];
+  }
   
-  return this.tourPackages.filter(pkg => pkg.isActive);
+  return this.tourPackages.filter(pkg => pkg && pkg.isActive);
 });
-
 // Để sử dụng virtual trong queries, thêm:
 userSchema.set('toObject', { virtuals: true });
 userSchema.set('toJSON', { virtuals: true });
