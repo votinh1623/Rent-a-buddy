@@ -50,10 +50,6 @@ buddyRouter.use(guideAuth);
 buddyRouter.get('/profile/me', getCurrentBuddyProfile);
 buddyRouter.get('/stats', getBuddyStats);
 buddyRouter.patch('/profile/update', updateBuddyProfile);
-buddyRouter.patch('/availability/update', (req, res) => {
-  req.params.buddyId = req.user._id;
-  updateBuddyAvailability(req, res);
-});
 buddyRouter.patch('/schedule/update', updateBuddySchedule);
 buddyRouter.post('/tour-packages/add', addTourPackage);
 buddyRouter.get('/earnings', (req, res) => {

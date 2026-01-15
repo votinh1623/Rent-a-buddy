@@ -177,12 +177,19 @@ function BuddyHomePage() {
       setErrors(prev => ({ ...prev, profile: null }));
 
       console.log('Fetching buddy profile...');
-      // Sử dụng endpoint mới: /api/buddies/my/profile/me
       const response = await api.get('/buddies/my/profile/me');
       console.log('Profile response:', response.data);
 
       if (response.data.success) {
-        setBuddyProfile(response.data.data);
+        const profileData = response.data.data;
+
+        // ĐẢM BẢO CÓ FIELD isAvailableNow
+        if (profileData.isAvailableNow === undefined) {
+          console.warn('isAvailableNow field missing in response, setting default to true');
+          profileData.isAvailableNow = true;
+        }
+
+        setBuddyProfile(profileData);
       }
     } catch (error) {
       console.error('Error fetching buddy profile:', error);
@@ -416,33 +423,33 @@ function BuddyHomePage() {
 
   // Handlers
   const handleToggleAvailability = useCallback(async () => {
-    if (!buddyProfile?._id) {
-      toast.error('Profile not loaded yet');
-      return;
-    }
+    if (!buddyProfile?._id) return;
+
+    const newAvailability = !buddyProfile.isAvailableNow;
 
     try {
-      const newAvailability = !buddyProfile.isAvailable;
-      const response = await api.patch(`/buddies/availability`, {
-        isAvailable: newAvailability
+      const response = await api.patch(`/buddies/${buddyProfile._id}/availability`, {
+        isAvailableNow: newAvailability
       });
 
       if (response.data.success) {
+        // Option 1: Cập nhật state từ response
         setBuddyProfile(prev => ({
           ...prev,
-          isAvailable: newAvailability
+          isAvailableNow: response.data.data.isAvailableNow
         }));
-        toast.success(
-          <div>
-            <FaCheckCircle /> You are now <strong>{newAvailability ? 'available' : 'unavailable'}</strong> for bookings
-          </div>
-        );
+
+        // Option 2: Fetch lại từ server để đảm bảo đồng bộ
+        await fetchBuddyProfile();
+
+        toast.success(`You are now ${newAvailability ? 'available' : 'unavailable'}`);
       }
     } catch (error) {
-      console.error('Error toggling availability:', error);
-      toast.error('Failed to update availability');
+      const errorMessage = error.response?.data?.message ||
+        'Failed to update availability';
+      toast.error(errorMessage);
     }
-  }, [buddyProfile]);
+  }, [buddyProfile, fetchBuddyProfile]);
 
   const toggleProfileDropdown = useCallback(() => {
     setShowProfileDropdown(prev => !prev);
@@ -515,7 +522,7 @@ function BuddyHomePage() {
               Welcome back, {buddyProfile?.name || 'Buddy'}!
             </h1>
             <p className="welcome-subtitle">
-              {buddyProfile?.isAvailable
+              {buddyProfile?.isAvailableNow
                 ? 'You are currently available for bookings'
                 : 'You are currently offline'}
             </p>
@@ -528,12 +535,12 @@ function BuddyHomePage() {
         <div className="header-right">
           <div className="header-actions">
             <button
-              className={`availability-toggle ${buddyProfile?.isAvailable ? 'available' : 'unavailable'}`}
+              className={`availability-toggle ${buddyProfile?.isAvailableNow ? 'available' : 'unavailable'}`}
               onClick={handleToggleAvailability}
               disabled={loadingSections.profile}
             >
               <div className="toggle-indicator"></div>
-              <span>{buddyProfile?.isAvailable ? 'Available' : 'Unavailable'}</span>
+              <span>{buddyProfile?.isAvailableNow ? 'Available' : 'Unavailable'}</span>
             </button>
 
             <button

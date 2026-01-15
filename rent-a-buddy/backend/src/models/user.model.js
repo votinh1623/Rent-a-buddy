@@ -159,7 +159,7 @@ const userSchema = new mongoose.Schema({
   },
   isAvailableNow: {
     type: Boolean,
-    default: false
+    default: undefined
   },
   
   // Thống kê và hiệu suất
@@ -239,14 +239,35 @@ const userSchema = new mongoose.Schema({
 });
 
 // Middleware để tự động cập nhật isAvailableNow dựa trên lastOnline
-userSchema.pre('save', function(next) {
-  if (this.role === 'tour-guide') {
-    // Nếu lastOnline trong vòng 15 phút và có availability, coi như available
-    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-    this.isAvailableNow = this.lastOnline >= fifteenMinutesAgo;
+// userSchema.pre('save', function(next) {
+//   if (this.role === 'tour-guide') {
+//     // Nếu lastOnline trong vòng 15 phút và có availability, coi như available
+//     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+//     this.isAvailableNow = this.lastOnline >= fifteenMinutesAgo;
     
-    // Tự động tạo giá trị mặc định cho whatToExpect nếu chưa có
-    if (this.whatToExpect.length === 0 && this.isNew) {
+//     // Tự động tạo giá trị mặc định cho whatToExpect nếu chưa có
+//     if (this.whatToExpect.length === 0 && this.isNew) {
+//       this.whatToExpect = [
+//         'Personalized itinerary based on your interests',
+//         'Local insights and hidden gems',
+//         'Flexible schedule and pacing',
+//         'Cultural and historical context',
+//         'Photo opportunities at scenic spots',
+//         'Recommendations for your entire trip'
+//       ];
+//     }
+//   }
+//   next();
+// });
+userSchema.pre('save', function(next) {
+  if (this.isNew && this.role === 'tour-guide') {
+    // Chỉ set mặc định cho new users
+    if (this.isAvailableNow === undefined) {
+      this.isAvailableNow = true;
+    }
+    
+    // Tự động tạo giá trị mặc định cho whatToExpect
+    if (this.whatToExpect.length === 0) {
       this.whatToExpect = [
         'Personalized itinerary based on your interests',
         'Local insights and hidden gems',
@@ -259,7 +280,6 @@ userSchema.pre('save', function(next) {
   }
   next();
 });
-
 // Phương thức tính rating mới
 userSchema.methods.updateRating = function(newRating) {
   if (this.role !== 'tour-guide') {
