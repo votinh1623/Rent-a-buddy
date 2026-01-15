@@ -119,3 +119,77 @@ export const findOrCreateConversation = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+export const getRecentConversations = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const limit = parseInt(req.query.limit) || 3;
+    
+    // Lấy TẤT CẢ conversations của user
+    const conversations = await Conversation.find({
+      'participants.userId': userId
+    })
+      .populate({
+        path: 'participants.userId',
+        select: 'name pfp role email'
+      })
+      .populate('lastMessage.senderId', 'name pfp')
+      .sort({ 
+        lastMessageAt: -1,  // Ưu tiên conversations có tin nhắn
+        updatedAt: -1       // Fallback: conversations mới nhất
+      })
+      .limit(limit);
+    
+    console.log(`Found ${conversations.length} conversations for user ${userId}`);
+    
+    // Format response
+    const formattedConversations = conversations.map(convo => {
+      // Tìm other participant
+      const otherParticipant = convo.participants.find(
+        p => p.userId && p.userId._id.toString() !== userId.toString()
+      );
+      
+      // Tính unread count - fix Map access
+      let unreadCount = 0;
+      if (convo.unreadCounts && convo.unreadCounts instanceof Map) {
+        unreadCount = convo.unreadCounts.get(userId.toString()) || 0;
+      } else if (convo.unreadCounts && typeof convo.unreadCounts === 'object') {
+        // Nếu unreadCounts là plain object
+        unreadCount = convo.unreadCounts[userId.toString()] || 0;
+      }
+      
+      // Lấy last message text
+      let lastMessageText = 'New conversation';
+      if (convo.lastMessage && convo.lastMessage.content) {
+        lastMessageText = convo.lastMessage.content;
+      }
+      
+      return {
+        _id: convo._id,
+        otherParticipant: otherParticipant?.userId || null,
+        lastMessage: {
+          text: lastMessageText,
+          senderId: convo.lastMessage?.senderId,
+          createdAt: convo.lastMessage?.createdAt
+        },
+        unreadCount: unreadCount,
+        lastActivity: convo.lastMessageAt || convo.updatedAt || convo.createdAt,
+        createdAt: convo.createdAt,
+        updatedAt: convo.updatedAt
+      };
+    });
+    
+    console.log('Formatted conversations:', formattedConversations.length);
+    
+    res.json({
+      success: true,
+      data: formattedConversations
+    });
+    
+  } catch (error) {
+    console.error('Error getting recent conversations:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

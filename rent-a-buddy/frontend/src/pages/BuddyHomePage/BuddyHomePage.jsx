@@ -51,6 +51,7 @@ import BookingCard from '../../components/BookingCard/BookingCard';
 import MessageItem from '../../components/MessageItem/MessageItem';
 
 function BuddyHomePage() {
+  const currentUser = JSON.parse(localStorage.getItem('user'));
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [loadingSections, setLoadingSections] = useState({
@@ -152,7 +153,7 @@ function BuddyHomePage() {
         fetchBuddyProfile(),
         fetchBuddyStats(),
         fetchUpcomingBookings(),
-        // fetchRecentMessages()
+        fetchRecentMessages()
       ]);
 
       setLastRefreshed(new Date());
@@ -332,15 +333,21 @@ function BuddyHomePage() {
 
       if (response.data.success) {
         const conversations = response.data.data || response.data.conversations || [];
-        const messages = conversations.slice(0, 3).map(conversation => ({
-          id: conversation._id,
-          sender: conversation.otherParticipant?.name || 'User',
-          senderAvatar: conversation.otherParticipant?.avatar,
-          message: conversation.lastMessage?.text || 'New conversation',
-          time: formatTimeAgo(new Date(conversation.lastActivity || conversation.createdAt)),
-          unread: conversation.unreadCount > 0,
-          conversationId: conversation._id
-        }));
+        const messages = conversations.slice(0, 3).map(conversation => {
+          console.log('Processing conversation:', conversation); // DEBUG
+
+          return {
+            id: conversation._id || conversation.id,
+            // CHỈNH SỬA: conversation trực tiếp, không transform
+            ...conversation,
+            sender: conversation.otherParticipant?.name || 'User',
+            senderAvatar: conversation.otherParticipant?.avatar || conversation.otherParticipant?.pfp,
+            message: conversation.lastMessage?.text || conversation.lastMessage?.content || 'New conversation',
+            time: formatTimeAgo(new Date(conversation.lastActivity || conversation.createdAt)),
+            unread: conversation.unreadCount > 0,
+            conversationId: conversation._id || conversation.id
+          };
+        });
 
         setRecentMessages(messages);
       }
@@ -830,7 +837,7 @@ function BuddyHomePage() {
         {/* Right Column */}
         <div className="right-column">
           {/* Verification Status */}
-          {buddyProfile && verificationStatus.completed < verificationStatus.total && (
+          {/* {buddyProfile && verificationStatus.completed < verificationStatus.total && (
             <section className="verification-section">
               <div className="section-header">
                 <h2><FaShieldAlt /> Verification Status</h2>
@@ -868,55 +875,27 @@ function BuddyHomePage() {
                 Complete All Verifications
               </button>
             </section>
-          )}
+          )} */}
 
           {/* Recent Messages */}
-          <section className="messages-section">
-            <div className="section-header">
-              <h2><FaEnvelope /> Recent Messages</h2>
-              <button
-                className="view-all-btn"
-                onClick={() => handleViewAll('/buddy/messages')}
-              >
-                View All <FaChevronRight />
-              </button>
+          {recentMessages.length === 0 ? (
+            <div className="empty-state">
+              <FaComments className="empty-icon" />
+              <h4>No messages yet</h4>
+              <p>Your conversations will appear here</p>
             </div>
-
-            {errors.messages ? (
-              <ErrorRetry
-                message={errors.messages}
-                onRetry={() => handleRetry('messages')}
-              />
-            ) : loadingSections.messages ? (
-              <div className="messages-skeleton">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="message-skeleton-item">
-                    <div className="skeleton-avatar"></div>
-                    <div className="skeleton-content">
-                      <div className="skeleton-line"></div>
-                      <div className="skeleton-line short"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : recentMessages.length === 0 ? (
-              <div className="empty-state">
-                <FaComments className="empty-icon" />
-                <h4>No messages yet</h4>
-                <p>Your conversations will appear here</p>
-              </div>
-            ) : (
-              <div className="messages-list">
-                {recentMessages.map(message => (
-                  <MessageItem
-                    key={message.id}
-                    message={message}
-                    onClick={() => handleViewAll(`/messages/${message.conversationId}`)}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
+          ) : (
+            <div className="messages-list">
+              {recentMessages.map((conversation, index) => (
+                <MessageItem
+                  key={conversation._id || `conv-${index}`}
+                  conversation={conversation}  // Truyền thẳng object từ API
+                  currentUserId={currentUser?._id}
+                  onClick={() => handleViewAll(`/messages/${conversation._id}`)}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Performance Insights */}
           <section className="performance-section">
