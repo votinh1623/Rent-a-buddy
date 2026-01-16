@@ -16,13 +16,13 @@ const BuddyProfilePage = () => {
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedTime, setSelectedTime] = useState('');
     const [bookingDuration, setBookingDuration] = useState(2);
-    const [showBookingModal, setShowBookingModal] = useState(false);
     const [showDestinationDetail, setShowDestinationDetail] = useState(false);
     const [selectedDestination, setSelectedDestination] = useState(null);
 
     // Fetch buddy data
     useEffect(() => {
         const fetchBuddyProfile = async () => {
+
             try {
                 setLoading(true);
                 setError(null);
@@ -42,34 +42,49 @@ const BuddyProfilePage = () => {
 
                     // 2. Fetch detailed destination info for each destination
                     if (data.data.relatedDestination && data.data.relatedDestination.length > 0) {
-                        const destinationDetails = await Promise.all(
-                            data.data.relatedDestination.map(async (dest) => {
-                                try {
-                                    // Nếu dest đã có coverImg, không cần fetch lại
-                                    if (dest.coverImg) {
-                                        console.log(`Destination ${dest.name} already has coverImg:`, dest.coverImg);
-                                        return dest;
-                                    }
+                        console.log('Processing related destinations:', data.data.relatedDestination);
 
-                                    // Fetch detailed destination info
-                                    console.log(`Fetching details for destination: ${dest._id}`);
-                                    const destResponse = await fetch(`/api/destinations/${dest._id}`);
-
-                                    if (destResponse.ok) {
-                                        const destData = await destResponse.json();
-                                        if (destData.success) {
-                                            console.log(`Got detailed destination:`, destData.data);
-                                            return destData.data;
-                                        }
-                                    }
-                                } catch (err) {
-                                    console.error(`Error fetching destination ${dest._id}:`, err);
-                                }
+                        const destinationPromises = data.data.relatedDestination.map(async (dest, index) => {
+                            // Nếu dest đã là object đầy đủ
+                            if (dest && typeof dest === 'object' && dest.name) {
+                                console.log(`Destination ${index} is already object:`, dest);
                                 return dest;
-                            })
-                        );
+                            }
 
-                        console.log('Detailed destinations:', destinationDetails);
+                            // Nếu dest chỉ là ID string
+                            const destId = typeof dest === 'string' ? dest : dest._id || dest;
+
+                            if (!destId) {
+                                console.warn(`Destination ${index} has no ID:`, dest);
+                                return { _id: `unknown-${index}`, name: 'Unknown Destination' };
+                            }
+
+                            try {
+                                console.log(`Fetching details for destination ID: ${destId}`);
+                                const destResponse = await fetch(`/api/destinations/${destId}`);
+
+                                if (destResponse.ok) {
+                                    const destData = await destResponse.json();
+                                    if (destData.success) {
+                                        console.log(`Got detailed destination ${index}:`, destData.data);
+                                        return destData.data;
+                                    }
+                                }
+                            } catch (err) {
+                                console.error(`Error fetching destination ${destId}:`, err);
+                            }
+
+                            // Fallback
+                            return {
+                                _id: destId,
+                                name: `Destination ${index + 1}`,
+                                city: 'Unknown',
+                                country: 'Vietnam'
+                            };
+                        });
+
+                        const destinationDetails = await Promise.all(destinationPromises);
+                        console.log('All destination details:', destinationDetails);
                         setDetailedDestinations(destinationDetails);
                     }
                 } else {
@@ -88,11 +103,40 @@ const BuddyProfilePage = () => {
         }
     }, [id]);
 
-    // Handle destination click
+    // Handle destination click - SỬA LẠI
     const handleDestinationClick = (destination) => {
-        console.log('Destination clicked:', destination);
-        setSelectedDestination(destination);
-        setShowDestinationDetail(true);
+        console.log('Destination clicked - raw:', destination);
+        console.log('Destination clicked - processed:', {
+            id: destination._id,
+            name: destination.name,
+            city: destination.city,
+            coverImg: destination.coverImg
+        });
+
+        // Đảm bảo destination có đầy đủ thông tin
+        if (!destination || !destination._id) {
+            console.error('Invalid destination clicked:', destination);
+            return;
+        }
+
+        // Nếu destination chỉ là ID string, cần lấy từ detailedDestinations
+        if (typeof destination === 'string') {
+            console.log('Destination is string ID, looking in detailedDestinations...');
+            const foundDestination = detailedDestinations.find(d =>
+                d._id === destination || d.id === destination
+            );
+
+            if (foundDestination) {
+                setSelectedDestination(foundDestination);
+                setShowDestinationDetail(true);
+            } else {
+                console.error('Destination not found in detailedDestinations:', destination);
+            }
+        } else {
+            // Destination đã là object
+            setSelectedDestination(destination);
+            setShowDestinationDetail(true);
+        }
     };
 
     // Close destination detail
@@ -103,9 +147,15 @@ const BuddyProfilePage = () => {
 
     // Render destinations
     const renderDestinations = () => {
+        console.log('Buddy data for DestinationDetail:', {
+            buddy: buddy,
+            buddyName: buddy?.name,
+            hasBuddy: !!buddy,
+            selectedDestination: selectedDestination
+        });
         const destsToRender = detailedDestinations.length > 0 ? detailedDestinations :
             (buddy?.relatedDestination || []);
-        
+
         if (!destsToRender || destsToRender.length === 0) {
             return (
                 <div className="no-data-message">
@@ -116,26 +166,38 @@ const BuddyProfilePage = () => {
         }
 
         return destsToRender.map((dest, index) => {
-            const coverImg = dest.coverImg || dest.image || dest.coverImage || dest.img || dest.thumbnail;
+            // Kiểm tra dest có phải là object không
+            const destinationObj = typeof dest === 'string' ?
+                detailedDestinations.find(d => d._id === dest) || { _id: dest, name: 'Loading...' } :
+                dest;
+
+            const coverImg = destinationObj.coverImg ||
+                destinationObj.image ||
+                destinationObj.coverImage ||
+                destinationObj.img ||
+                destinationObj.thumbnail;
+
             let imageUrl = '';
 
             if (coverImg && typeof coverImg === 'string' && coverImg.trim() !== '') {
                 imageUrl = coverImg;
             } else {
-                const searchQuery = encodeURIComponent(`${dest.name} ${dest.city || ''}`.trim());
+                const searchQuery = encodeURIComponent(
+                    `${destinationObj.name || 'Destination'} ${destinationObj.city || ''}`
+                );
                 imageUrl = `https://source.unsplash.com/featured/400x250/?${searchQuery},vietnam,tourism`;
             }
 
             return (
                 <div
-                    key={dest._id || index}
+                    key={destinationObj._id || index}
                     className="destination-card-small"
-                    onClick={() => handleDestinationClick(dest)}
+                    onClick={() => handleDestinationClick(destinationObj)} // Truyền destinationObj
                 >
                     <div className="image-container">
                         <img
                             src={imageUrl}
-                            alt={dest.name || 'Destination'}
+                            alt={destinationObj.name || 'Destination'}
                             className="destination-img"
                             loading="lazy"
                         />
@@ -143,22 +205,28 @@ const BuddyProfilePage = () => {
 
                     <div className="destination-info">
                         <div className="destination-header">
-                            <div className="destination-name">{dest.name || 'Unknown Destination'}</div>
-                            {dest.isPopular && (
+                            <div className="destination-name">
+                                {destinationObj.name || `Destination ${index + 1}`}
+                            </div>
+                            {destinationObj.isPopular && (
                                 <span className="popular-badge">Popular</span>
                             )}
                         </div>
 
                         <div className="destination-location">
                             <MapPin size={14} />
-                            <span>{dest.city || ''}{dest.city && dest.country ? ', ' : ''}{dest.country || 'Vietnam'}</span>
+                            <span>
+                                {destinationObj.city || ''}
+                                {destinationObj.city && destinationObj.country ? ', ' : ''}
+                                {destinationObj.country || 'Vietnam'}
+                            </span>
                         </div>
 
-                        {dest.description && (
+                        {destinationObj.description && (
                             <div className="destination-description">
-                                {dest.description.length > 80
-                                    ? `${dest.description.substring(0, 80)}...`
-                                    : dest.description}
+                                {destinationObj.description.length > 80
+                                    ? `${destinationObj.description.substring(0, 80)}...`
+                                    : destinationObj.description}
                             </div>
                         )}
 
@@ -204,16 +272,6 @@ const BuddyProfilePage = () => {
     const calculateTotalPrice = () => {
         if (!buddy) return 0;
         return buddy.hourlyRate * bookingDuration;
-    };
-
-    // Handle booking
-    const handleBookNow = () => {
-        if (!selectedDate || !selectedTime) {
-            alert('Please select date and time');
-            return;
-        }
-
-        setShowBookingModal(true);
     };
 
     // Render activities
@@ -449,7 +507,7 @@ const BuddyProfilePage = () => {
                     {/* Right Column - Booking & Details */}
                     <div className="profile-right">
                         {/* Booking Card */}
-                        <div className="booking-card">
+                        {/* <div className="booking-card">
                             <h3>Book {buddy.name}</h3>
 
                             <div className="booking-form">
@@ -524,7 +582,7 @@ const BuddyProfilePage = () => {
                                     </p>
                                 )}
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Activities Section */}
                         <div className="activities-section">
@@ -705,71 +763,11 @@ const BuddyProfilePage = () => {
                         )}
                     </div>
                 </div>
-
-                {/* Booking Modal */}
-                {showBookingModal && (
-                    <div className="booking-modal">
-                        <div className="modal-overlay" onClick={() => setShowBookingModal(false)}></div>
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <h3>Confirm Booking</h3>
-                                <button
-                                    className="modal-close"
-                                    onClick={() => setShowBookingModal(false)}
-                                >
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            <div className="modal-body">
-                                <div className="booking-details">
-                                    <div className="detail-row">
-                                        <span>Guide:</span>
-                                        <span>{buddy.name}</span>
-                                    </div>
-                                    <div className="detail-row">
-                                        <span>Date:</span>
-                                        <span>{selectedDate}</span>
-                                    </div>
-                                    <div className="detail-row">
-                                        <span>Time:</span>
-                                        <span>{selectedTime}</span>
-                                    </div>
-                                    <div className="detail-row">
-                                        <span>Duration:</span>
-                                        <span>{bookingDuration} hours</span>
-                                    </div>
-                                    <div className="detail-row">
-                                        <span>Total Price:</span>
-                                        <span className="total-price">${calculateTotalPrice()}</span>
-                                    </div>
-                                </div>
-
-                                <div className="modal-actions">
-                                    <button
-                                        className="cancel-btn"
-                                        onClick={() => setShowBookingModal(false)}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        className="confirm-btn"
-                                        onClick={() => {
-                                            alert(`Booking confirmed with ${buddy.name}!`);
-                                            setShowBookingModal(false);
-                                        }}
-                                    >
-                                        Confirm Booking
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* Destination Detail Modal */}
             {showDestinationDetail && selectedDestination && (
+
                 <div className="destination-modal-overlay">
                     <div className="destination-modal">
                         <div className="destination-modal-header">
@@ -785,6 +783,7 @@ const BuddyProfilePage = () => {
                             <DestinationDetail
                                 destination={selectedDestination}
                                 buddyName={buddy.name}
+                                buddy={buddy} // QUAN TRỌNG: Thêm prop buddy này
                             />
                         </div>
                     </div>

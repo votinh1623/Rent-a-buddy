@@ -551,3 +551,153 @@
         }
     }
 }
+.booking-cta-card {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border-radius: 16px;
+  padding: 24px;
+  color: white;
+  text-align: center;
+  margin-top: 24px;
+  box-shadow: 0 8px 25px rgba(24, 144, 255, 0.3);
+  animation: fadeIn 0.5s ease;
+
+  .booking-title {
+    font-size: 20px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  p {
+    opacity: 0.9;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+
+  .price-display {
+    font-size: 36px;
+    font-weight: 700;
+    margin: 20px 0;
+    line-height: 1;
+
+    .price-unit {
+      font-size: 16px;
+      font-weight: 400;
+      opacity: 0.8;
+      margin-left: 4px;
+    }
+  }
+
+  .show-booking-btn {
+    width: 100%;
+    padding: 16px;
+    background: white;
+    color: #1890ff;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-bottom: 16px;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  .cta-note {
+    font-size: 12px;
+    opacity: 0.8;
+    line-height: 1.4;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.booking-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+
+    .booking-modal {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        animation: slideUp 0.3s ease;
+        transition: all 0.3s ease;
+        
+        // Hiệu ứng highlight khi scroll đến
+        &.highlight {
+            animation: pulseBorder 2s ease;
+            box-shadow: 0 0 0 4px rgba(24, 144, 255, 0.3),
+                        0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+    }
+}
+
+// Hiệu ứng pulse cho border
+@keyframes pulseBorder {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(24, 144, 255, 0.7),
+                    0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(24, 144, 255, 0),
+                    0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+}
+
+// Sửa CTA button
+.show-booking-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(24, 144, 255, 0.4);
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+}

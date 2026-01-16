@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     MapPin,
     Star,
@@ -10,28 +10,90 @@ import {
     Utensils,
     Clock,
     Award,
-    Heart
+    Heart,
+    ArrowDown
 } from 'lucide-react';
 import './DestinationDetail.scss';
-import MapComponent from '../MapComponent/MapComponent'; // Thêm import này
+import MapComponent from '../MapComponent/MapComponent';
+import DestinationBookingCard from '../DestinationBookingCard/DestinationBookingCard';
 
-const DestinationDetail = ({ destination, buddyName }) => {
+const DestinationDetail = ({ destination, buddyName, buddy }) => {
     const [loading, setLoading] = useState(false);
-    const [destinationDetails, setDestinationDetails] = useState(destination);
+    const [destinationDetails, setDestinationDetails] = useState(destination || {});
+    const [showBookingCard, setShowBookingCard] = useState(false);
+    // const [highlightBooking, setHighlightBooking] = useState(false);
+    const bookingCardRef = useRef(null);
+    // TẠO BUDDY OBJECT AN TOÀN
+    const safeBuddy = React.useMemo(() => {
+        if (buddy && typeof buddy === 'object') {
+            return {
+                _id: buddy._id || 'unknown',
+                name: buddy.name || buddyName || 'Local Guide',
+                hourlyRate: Number(buddy.hourlyRate) || 25,
+                isAvailableNow: buddy.isAvailableNow !== undefined ? buddy.isAvailableNow : true,
+                rating: buddy.rating || {
+                    average: 4.5,
+                    count: 0
+                }
+            };
+        }
+
+        return {
+            _id: 'unknown',
+            name: buddyName || 'Local Guide',
+            hourlyRate: 25,
+            isAvailableNow: true,
+            rating: {
+                average: 4.5,
+                count: 0
+            }
+        };
+    }, [buddy, buddyName]);
+    // Function để scroll đến booking card
+    const scrollToBookingCard = () => {
+        setShowBookingCard(true);
+
+        // Đợi một chút để booking card render xong
+        setTimeout(() => {
+            if (bookingCardRef.current) {
+                // Scroll đến booking card
+                bookingCardRef.current.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
+        }, 100);
+    };
+
 
     useEffect(() => {
+        if (!destination || !destination._id) {
+            console.warn('No destination ID provided');
+            return;
+        }
+
         const fetchDestinationDetails = async () => {
-            if (!destination._id || destination.description) return;
+            // Nếu đã có description, không cần fetch lại
+            if (destination.description) {
+                console.log('Destination already has description');
+                return;
+            }
 
             try {
                 setLoading(true);
+                console.log('Fetching destination details for ID:', destination._id);
+
                 const response = await fetch(`/api/destinations/by-ids/${destination._id}`);
 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success) {
-                        setDestinationDetails(data.data);
-                    }
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Destination fetch response:', data);
+
+                if (data.success) {
+                    setDestinationDetails(data.data);
                 }
             } catch (err) {
                 console.error('Error fetching destination details:', err);
@@ -44,6 +106,8 @@ const DestinationDetail = ({ destination, buddyName }) => {
     }, [destination]);
 
     const getImageUrl = () => {
+        if (!destinationDetails) return '';
+
         const coverImg = destinationDetails.coverImg ||
             destinationDetails.image ||
             destinationDetails.coverImage ||
@@ -54,9 +118,11 @@ const DestinationDetail = ({ destination, buddyName }) => {
             return coverImg;
         }
 
-        const searchQuery = encodeURIComponent(
-            `${destinationDetails.name} ${destinationDetails.city || ''} ${destinationDetails.country || 'Vietnam'}`
-        );
+        const name = destinationDetails.name || 'Destination';
+        const city = destinationDetails.city || '';
+        const country = destinationDetails.country || 'Vietnam';
+
+        const searchQuery = encodeURIComponent(`${name} ${city} ${country}`.trim());
         return `https://source.unsplash.com/featured/1200x800/?${searchQuery},tourism,landscape`;
     };
 
@@ -98,6 +164,7 @@ const DestinationDetail = ({ destination, buddyName }) => {
     };
 
     const renderActivities = () => {
+        // DÙNG destinationDetails.activities, KHÔNG PHẢI buddy.relatedActivities
         if (!destinationDetails.activities || destinationDetails.activities.length === 0) {
             return (
                 <div className="activity-tags">
@@ -123,21 +190,18 @@ const DestinationDetail = ({ destination, buddyName }) => {
 
         return (
             <div className="activity-tags">
-                {destinationDetails.activities.map((activity, index) => (
-                    <div key={index} className="activity-tag">
-                        {typeof activity === 'object' ? (
-                            <>
-                                {activity.icon || <Camera size={16} />}
-                                {activity.name}
-                            </>
-                        ) : (
-                            <>
-                                <Camera size={16} />
-                                Activity
-                            </>
-                        )}
-                    </div>
-                ))}
+                {destinationDetails.activities.map((activity, index) => {
+                    // Xử lý activity có thể là string hoặc object
+                    const activityName = typeof activity === 'string' ? activity :
+                        activity?.name || `Activity ${index + 1}`;
+
+                    return (
+                        <div key={index} className="activity-tag">
+                            <Camera size={16} />
+                            {activityName}
+                        </div>
+                    );
+                })}
             </div>
         );
     };
@@ -158,7 +222,7 @@ const DestinationDetail = ({ destination, buddyName }) => {
                     <div className="stat-label">Avg Tour</div>
                 </div>
                 <div className="stat-item">
-                    <div className="stat-value">$25</div>
+                    <div className="stat-value">${safeBuddy.hourlyRate || 25}</div>
                     <div className="stat-label">Start From</div>
                 </div>
             </div>
@@ -175,6 +239,18 @@ const DestinationDetail = ({ destination, buddyName }) => {
         );
     }
 
+    if (!destinationDetails || !destinationDetails.name) {
+        return (
+            <div className="destination-detail error">
+                <div className="error-container">
+                    <div className="error-icon">⚠️</div>
+                    <h3>Destination Not Available</h3>
+                    <p>The destination information could not be loaded.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="destination-detail">
             {/* Hero Section */}
@@ -184,7 +260,7 @@ const DestinationDetail = ({ destination, buddyName }) => {
                     alt={destinationDetails.name}
                     className="destination-hero-image"
                     onError={(e) => {
-                        e.target.src = `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(destinationDetails.name)},tourism`;
+                        e.target.src = `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(destinationDetails.name || 'destination')},tourism`;
                     }}
                 />
                 <div className="destination-hero-overlay">
@@ -204,11 +280,9 @@ const DestinationDetail = ({ destination, buddyName }) => {
                             <Star size={14} /> Popular Destination
                         </div>
                     )}
-                    {buddyName && (
-                        <div className="guide-badge">
-                            Available with {buddyName}
-                        </div>
-                    )}
+                    <div className="guide-badge">
+                        Available with {safeBuddy.name}
+                    </div>
                 </div>
             </div>
 
@@ -225,7 +299,7 @@ const DestinationDetail = ({ destination, buddyName }) => {
                             </h2>
                             <div className="description">
                                 {destinationDetails.description ||
-                                    `${destinationDetails.name} is a beautiful destination in ${destinationDetails.city || 'Da Nang'} that offers unique experiences for travelers. With ${buddyName} as your guide, you'll discover hidden gems, local culture, and create unforgettable memories.`}
+                                    `${destinationDetails.name} is a beautiful destination in ${destinationDetails.city || 'Da Nang'} that offers unique experiences for travelers. With ${safeBuddy.name} as your guide, you'll discover hidden gems, local culture, and create unforgettable memories.`}
                             </div>
                         </div>
 
@@ -297,40 +371,54 @@ const DestinationDetail = ({ destination, buddyName }) => {
                                 <div className="coordinates-info">
                                     <div className="coordinate-item">
                                         <span className="coord-label">Latitude:</span>
-                                        <span className="coord-value">{destinationDetails.location.latitude?.toFixed(6) || 'N/A'}</span>
+                                        <span className="coord-value">
+                                            {destinationDetails.location.latitude?.toFixed(6) || 'N/A'}
+                                        </span>
                                     </div>
                                     <div className="coordinate-item">
                                         <span className="coord-label">Longitude:</span>
-                                        <span className="coord-value">{destinationDetails.location.longitude?.toFixed(6) || 'N/A'}</span>
+                                        <span className="coord-value">
+                                            {destinationDetails.location.longitude?.toFixed(6) || 'N/A'}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Booking Card */}
-                        <div className="booking-card">
-                            <h3 className="booking-title">Book This Tour</h3>
-                            <p>Experience this destination with {buddyName}</p>
-                            <div className="booking-price">
-                                $25<span className="price-unit">/hour</span>
+                        {/* Booking CTA Card */}
+                        <div className="booking-cta-card">
+                            <h3 className="booking-title">Ready to Explore?</h3>
+                            <p>Experience {destinationDetails.name} with {safeBuddy.name}</p>
+                            <div className="price-display">
+                                ${safeBuddy.hourlyRate || 25}
+                                <span className="price-unit">/hour</span>
                             </div>
-                            <button className="booking-btn">
-                                Book Now with {buddyName}
+                            <button
+                                className="show-booking-btn"
+                                onClick={scrollToBookingCard}
+                            >
+                                <ArrowDown size={16} />
+                                Check Availability & Book
                             </button>
+                            <p className="cta-note">
+                                Flexible booking • Free cancellation • Instant confirmation
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Map Section */}
-            <div className="destination-map">
-                <MapComponent
-                    destination={destinationDetails}
-                    height="400px"
-                    interactive={true}
-                    showControls={true}
-                />
-            </div>
+            {destinationDetails.location && (
+                <div className="destination-map">
+                    <MapComponent
+                        destination={destinationDetails}
+                        height="400px"
+                        interactive={true}
+                        showControls={true}
+                    />
+                </div>
+            )}
 
             {/* Tips Section */}
             <div className="tips-section">
@@ -369,6 +457,34 @@ const DestinationDetail = ({ destination, buddyName }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Booking Modal */}
+            {showBookingCard && (
+                <div className="booking-modal-overlay"
+                ref={bookingCardRef}>
+                    <div className={`booking-modal `}>
+                        <div className="booking-modal-header">
+                            <h3>Book This Tour</h3>
+                            <button
+                                className="modal-close-btn"
+                                onClick={() => setShowBookingCard(false)}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="booking-modal-content">
+                            <DestinationBookingCard
+                                destination={destinationDetails}
+                                buddy={safeBuddy}
+                                onBookingSuccess={(bookingData) => {
+                                    console.log('Booking successful:', bookingData);
+                                    setShowBookingCard(false);
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
