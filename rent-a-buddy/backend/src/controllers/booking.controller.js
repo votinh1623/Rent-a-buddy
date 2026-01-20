@@ -2,7 +2,7 @@
 import Booking from '../models/booking.model.js';
 import User from '../models/user.model.js';
 import Destination from '../models/destination.model.js';
-
+import mongoose from 'mongoose';
 export const createBooking = async (req, res) => {
   try {
     const { 
@@ -172,22 +172,47 @@ export const getUserBookings = async (req, res) => {
     const { userId } = req.params;
     const { status, role, limit = 20, page = 1 } = req.query;
 
+    console.log('=== DEBUG GET USER BOOKINGS ===');
+    console.log('User ID from params:', userId);
+    console.log('Role from query:', role);
+    console.log('User role from auth:', req.user?.role);
+
     let query = {};
     const limitNum = parseInt(limit);
     const pageNum = parseInt(page);
     const skip = (pageNum - 1) * limitNum;
     
-    // Determine if user is a buddy or traveller
-    if (role === 'buddy') {
-      query.buddy = userId;
+    // Kiểm tra nếu userId là ObjectId hợp lệ
+    let userObjectId = userId;
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      userObjectId = new mongoose.Types.ObjectId(userId);
+    }
+
+    // Xác định vai trò: ưu tiên query params, sau đó đến user role
+    const searchRole = role || req.user?.role || 'traveller';
+    
+    if (searchRole === 'tour-guide') {
+      query.buddy = userObjectId;
+      console.log('Searching as BUDDY');
+    } else if (searchRole === 'traveller') {
+      query.traveller = userObjectId;
+      console.log('Searching as TRAVELLER');
     } else {
-      query.traveller = userId;
+      // Tìm cả hai vai trò nếu không xác định được
+      query.$or = [
+        { traveller: userObjectId },
+        { buddy: userObjectId }
+      ];
+      console.log('Searching BOTH roles');
     }
 
     // Filter by status if provided
     if (status && ['pending', 'confirmed', 'completed', 'cancelled', 'rejected'].includes(status)) {
       query.status = status;
+      console.log('Status filter:', status);
     }
+
+    console.log('Final query:', JSON.stringify(query));
 
     const [bookings, total] = await Promise.all([
       Booking.find(query)
@@ -200,6 +225,9 @@ export const getUserBookings = async (req, res) => {
       Booking.countDocuments(query)
     ]);
 
+    console.log('Bookings found:', bookings.length);
+    console.log('Total count:', total);
+
     const totalPages = Math.ceil(total / limitNum);
 
     res.status(200).json({
@@ -208,6 +236,7 @@ export const getUserBookings = async (req, res) => {
       total,
       totalPages,
       currentPage: pageNum,
+      searchRole,  // Thêm để debug
       data: bookings
     });
 

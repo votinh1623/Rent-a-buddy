@@ -262,34 +262,65 @@ function BuddyHomePage() {
     }
   }, []);
 
-  // 3. Fetch upcoming bookings - THÊM LOGGING
+  // 3. Fetch upcoming bookings - SỬA LẠI ENDPOINT
   const fetchUpcomingBookings = useCallback(async () => {
     try {
       setLoadingSections(prev => ({ ...prev, bookings: true }));
       setErrors(prev => ({ ...prev, bookings: null }));
 
       console.log('Fetching upcoming bookings...');
-      // Sử dụng endpoint dự phòng nếu không có /upcoming
-      let response;
-      try {
-        response = await api.get('/bookings/my-bookings/buddy?status=confirmed&limit=3');
-      } catch (err) {
-        // Fallback nếu endpoint không tồn tại
-        response = await api.get('/bookings/my-bookings/buddy?limit=3');
+
+      // Lấy userId từ buddyProfile hoặc currentUser
+      const userId = buddyProfile?._id || currentUser?._id;
+
+      if (!userId) {
+        console.log('No user ID available for fetching bookings');
+        setErrors(prev => ({ ...prev, bookings: 'User ID not found' }));
+        return;
       }
 
-      console.log('Bookings response:', response.data);
+      console.log('Fetching bookings for user ID:', userId);
+
+      let response;
+      try {
+        // Sử dụng endpoint đúng với userId và role=tour-guide
+        response = await api.get(`/bookings/user/${userId}?role=tour-guide&limit=10`);
+      } catch (err) {
+        console.log('Primary endpoint failed:', err.message);
+
+        // Fallback: thử endpoint alternative
+        try {
+          // Có thể có endpoint /bookings/buddy/me hoặc /bookings/my-bookings
+          response = await api.get('/bookings/my-bookings?limit=10');
+        } catch (err2) {
+          console.log('Fallback endpoint failed:', err2.message);
+          throw new Error('No booking endpoints available');
+        }
+      }
+
+      console.log('Bookings API response:', response.data);
 
       if (response.data.success) {
         const now = new Date();
         const bookingsData = response.data.data || response.data.bookings || [];
 
+        console.log('Raw bookings data:', bookingsData);
+
         const upcoming = bookingsData
-          .filter(booking => new Date(booking.startDate) > now)
+          .filter(booking => {
+            if (!booking.startDate) return false;
+            const bookingDate = new Date(booking.startDate);
+            // Lọc bookings trong tương lai và không bị cancelled
+            return bookingDate > now &&
+              booking.status !== 'cancelled' &&
+              booking.status !== 'rejected';
+          })
+          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+          .slice(0, 3) // Chỉ lấy 3 booking gần nhất
           .map(booking => ({
             id: booking._id || booking.id,
             guestName: booking.traveller?.name || 'Guest',
-            guestAvatar: booking.traveller?.avatar,
+            guestAvatar: booking.traveller?.pfp || booking.traveller?.avatar,
             date: new Date(booking.startDate).toLocaleDateString('en-US', {
               weekday: 'short',
               month: 'short',
@@ -301,13 +332,22 @@ function BuddyHomePage() {
             }),
             duration: `${booking.duration || 4}h`,
             tourType: booking.destination?.name || 'Tour',
-            location: booking.destination?.city || 'City Tour',
+            location: booking.destination?.city || booking.destination?.location || 'City Tour',
             status: booking.status || 'confirmed',
             price: booking.totalPrice || 0,
-            specialRequests: booking.specialRequests
+            specialRequests: booking.specialRequests,
+            // Thêm các thông tin bổ sung nếu cần
+            bookingDate: booking.startDate,
+            destinationImage: booking.destination?.coverImg,
+            guestCount: booking.numberOfPeople || 1
           }));
 
-        setUpcomingBookings(upcoming.slice(0, 3));
+        console.log('Processed upcoming bookings:', upcoming);
+        setUpcomingBookings(upcoming);
+
+        if (upcoming.length === 0) {
+          console.log('No upcoming bookings found');
+        }
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -317,7 +357,7 @@ function BuddyHomePage() {
     } finally {
       setLoadingSections(prev => ({ ...prev, bookings: false }));
     }
-  }, []);
+  }, [buddyProfile, currentUser]); // Thêm dependencies
 
   // 4. Fetch recent messages - THÊM TRY-CATCH
   const fetchRecentMessages = useCallback(async () => {
