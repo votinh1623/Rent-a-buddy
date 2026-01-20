@@ -783,8 +783,15 @@ const BuddyProfilePage = () => {
                             <DestinationDetail
                                 destination={selectedDestination}
                                 buddyName={buddy.name}
-                                buddy={buddy} // QUAN TRỌNG: Thêm prop buddy này
+                                buddy={buddy} // Truyền cả buddy object
+                                onBookNow={(destination) => {
+                                    closeDestinationDetail();
+                                    setTimeout(() => {
+                                        openBookingModal(destination);
+                                    }, 300);
+                                }}
                             />
+
                         </div>
                     </div>
                 </div>

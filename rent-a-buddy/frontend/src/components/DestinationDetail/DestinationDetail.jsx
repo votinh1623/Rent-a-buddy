@@ -21,7 +21,6 @@ const DestinationDetail = ({ destination, buddyName, buddy }) => {
     const [loading, setLoading] = useState(false);
     const [destinationDetails, setDestinationDetails] = useState(destination || {});
     const [showBookingCard, setShowBookingCard] = useState(false);
-    // const [highlightBooking, setHighlightBooking] = useState(false);
     const bookingCardRef = useRef(null);
     // TẠO BUDDY OBJECT AN TOÀN
     const safeBuddy = React.useMemo(() => {
@@ -461,7 +460,7 @@ const DestinationDetail = ({ destination, buddyName, buddy }) => {
             {/* Booking Modal */}
             {showBookingCard && (
                 <div className="booking-modal-overlay"
-                ref={bookingCardRef}>
+                    ref={bookingCardRef}>
                     <div className={`booking-modal `}>
                         <div className="booking-modal-header">
                             <h3>Book This Tour</h3>
