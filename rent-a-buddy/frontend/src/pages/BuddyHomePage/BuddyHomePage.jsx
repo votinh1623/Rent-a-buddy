@@ -44,6 +44,7 @@ import './BuddyHomePage.scss';
 import api from '../../api.js';
 
 // // Components
+import BookingDetailCard from '../../components/BookingDetailCard/BookingDetailCard.jsx';
 import SkeletonLoader from '../../components/SkeletonLoader/SkeletonLoader';
 import ErrorRetry from '../../components/ErrorRetry/ErrorRetry';
 import StatsCard from '../../components/StatsCard/StatsCard';
@@ -60,6 +61,9 @@ function BuddyHomePage() {
     bookings: true,
     messages: true
   });
+  // Thêm ref ở trên cùng các state
+  const isInitialMount = useRef(true);
+
 
   const [errors, setErrors] = useState({
     profile: null,
@@ -67,148 +71,10 @@ function BuddyHomePage() {
     bookings: null,
     messages: null
   });
-
-  const [buddyProfile, setBuddyProfile] = useState(null);
-  const [upcomingBookings, setUpcomingBookings] = useState([]);
-  const [stats, setStats] = useState({
-    totalEarnings: 0,
-    completedTours: 0,
-    averageRating: 0,
-    responseRate: 0,
-    pendingBookings: 0,
-    cancellationRate: 0,
-    totalBookings: 0,
-    monthlyEarnings: 0,
-    ranking: null
-  });
-  const [recentMessages, setRecentMessages] = useState([]);
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
-  const dropdownRef = useRef(null);
-
-  // Memoized calculations
-  const performanceMetrics = useMemo(() => ({
-    bookingRate: stats.totalBookings > 0
-      ? Math.round((stats.completedTours / stats.totalBookings) * 100)
-      : 0,
-    satisfactionRate: Math.round((stats.averageRating / 5) * 100),
-    cancellationRate: Math.min(100, Math.round(stats.cancellationRate || 0))
-  }), [stats]);
-
-  const verificationStatus = useMemo(() => {
-    if (!buddyProfile) return { completed: 0, total: 4 };
-
-    const steps = [
-      buddyProfile.emailVerified,
-      buddyProfile.phoneVerified,
-      buddyProfile.idVerified,
-      buddyProfile.backgroundCheckVerified
-    ];
-
-    return {
-      completed: steps.filter(Boolean).length,
-      total: steps.length,
-      steps: [
-        { name: 'Email', completed: buddyProfile.emailVerified, icon: <FaEnvelope /> },
-        { name: 'Phone', completed: buddyProfile.phoneVerified, icon: <FaPhone /> },
-        { name: 'ID', completed: buddyProfile.idVerified, icon: <FaIdCard /> },
-        { name: 'Background', completed: buddyProfile.backgroundCheckVerified, icon: <FaShieldAlt /> }
-      ]
-    };
-  }, [buddyProfile]);
-
-  // Format time ago helper
-  const formatTimeAgo = useCallback((date) => {
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
-  }, []);
-  // Click outside to close dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowProfileDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Fetch all data with retry logic
-  const fetchAllData = useCallback(async (showToast = false) => {
-    setIsRefreshing(true);
-    try {
-      await Promise.all([
-        fetchBuddyProfile(),
-        fetchBuddyStats(),
-        fetchUpcomingBookings(),
-        fetchRecentMessages()
-      ]);
-
-      setLastRefreshed(new Date());
-      if (showToast) {
-        toast.success('Dashboard updated successfully!');
-      }
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setIsRefreshing(false);
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Fetch buddy profile
-  // 1. Fetch buddy profile
-  // 1. Fetch buddy profile - SỬA ENDPOINT
-  const fetchBuddyProfile = useCallback(async () => {
-    try {
-      setLoadingSections(prev => ({ ...prev, profile: true }));
-      setErrors(prev => ({ ...prev, profile: null }));
-
-      console.log('Fetching buddy profile...');
-      const response = await api.get('/buddies/my/profile/me');
-      console.log('Profile response:', response.data);
-
-      if (response.data.success) {
-        const profileData = response.data.data;
-
-        // ĐẢM BẢO CÓ FIELD isAvailableNow
-        if (profileData.isAvailableNow === undefined) {
-          console.warn('isAvailableNow field missing in response, setting default to true');
-          profileData.isAvailableNow = true;
-        }
-
-        setBuddyProfile(profileData);
-      }
-    } catch (error) {
-      console.error('Error fetching buddy profile:', error);
-      const message = error.response?.data?.message || error.message || 'Failed to load profile';
-      setErrors(prev => ({ ...prev, profile: message }));
-
-      if (error.response?.status === 401) {
-        toast.error('Please login again');
-        navigate('/login');
-      } else if (error.response?.status === 403) {
-        toast.error('Access denied. Only buddies can access this page');
-        navigate('/');
-      } else {
-        toast.error('Failed to load profile data');
-      }
-    } finally {
-      setLoadingSections(prev => ({ ...prev, profile: false }));
-    }
-  }, [navigate]);
+  // Thêm state và hàm handler trong BuddyHomePage
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showBookingDetail, setShowBookingDetail] = useState(false);
+  const [isProcessingBooking, setIsProcessingBooking] = useState(false);
 
   // 2. Fetch buddy statistics - SỬA ENDPOINT
   const fetchBuddyStats = useCallback(async () => {
@@ -261,104 +127,95 @@ function BuddyHomePage() {
       setLoadingSections(prev => ({ ...prev, stats: false }));
     }
   }, []);
-
-  // 3. Fetch upcoming bookings - SỬA LẠI ENDPOINT
-  const fetchUpcomingBookings = useCallback(async () => {
-    try {
-      setLoadingSections(prev => ({ ...prev, bookings: true }));
-      setErrors(prev => ({ ...prev, bookings: null }));
-
-      console.log('Fetching upcoming bookings...');
-
-      // Lấy userId từ buddyProfile hoặc currentUser
-      const userId = buddyProfile?._id || currentUser?._id;
-
-      if (!userId) {
-        console.log('No user ID available for fetching bookings');
-        setErrors(prev => ({ ...prev, bookings: 'User ID not found' }));
-        return;
-      }
-
-      console.log('Fetching bookings for user ID:', userId);
-
-      let response;
+  // Thêm hàm xử lý khi click vào booking
+  const handleBookingClick = useCallback((booking) => {
+    // Fetch full booking details từ API
+    const fetchBookingDetails = async () => {
       try {
-        // Sử dụng endpoint đúng với userId và role=tour-guide
-        response = await api.get(`/bookings/user/${userId}?role=tour-guide&limit=10`);
-      } catch (err) {
-        console.log('Primary endpoint failed:', err.message);
-
-        // Fallback: thử endpoint alternative
-        try {
-          // Có thể có endpoint /bookings/buddy/me hoặc /bookings/my-bookings
-          response = await api.get('/bookings/my-bookings?limit=10');
-        } catch (err2) {
-          console.log('Fallback endpoint failed:', err2.message);
-          throw new Error('No booking endpoints available');
+        const response = await api.get(`/bookings/${booking.id}`);
+        if (response.data.success) {
+          setSelectedBooking(response.data.data);
+          setShowBookingDetail(true);
         }
+      } catch (error) {
+        console.error('Error fetching booking details:', error);
+        // Fallback: sử dụng data đã có
+        setSelectedBooking(booking);
+        setShowBookingDetail(true);
       }
+    };
 
-      console.log('Bookings API response:', response.data);
+    fetchBookingDetails();
+  }, []);
 
-      if (response.data.success) {
-        const now = new Date();
-        const bookingsData = response.data.data || response.data.bookings || [];
+  const [buddyProfile, setBuddyProfile] = useState(null);
+  const [upcomingBookings, setUpcomingBookings] = useState([]);
+  const [stats, setStats] = useState({
+    totalEarnings: 0,
+    completedTours: 0,
+    averageRating: 0,
+    responseRate: 0,
+    pendingBookings: 0,
+    cancellationRate: 0,
+    totalBookings: 0,
+    monthlyEarnings: 0,
+    ranking: null
+  });
+  const [recentMessages, setRecentMessages] = useState([]);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState(new Date());
+  const dropdownRef = useRef(null);
+  // Format time ago helper
+  const formatTimeAgo = useCallback((date) => {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
 
-        console.log('Raw bookings data:', bookingsData);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  }, []);
+  // Format last refreshed time
+  const formatLastRefreshed = useCallback(() => {
+    return lastRefreshed.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }, [lastRefreshed]);
+  // Memoized calculations
+  const performanceMetrics = useMemo(() => ({
+    bookingRate: stats.totalBookings > 0
+      ? Math.round((stats.completedTours / stats.totalBookings) * 100)
+      : 0,
+    satisfactionRate: Math.round((stats.averageRating / 5) * 100),
+    cancellationRate: Math.min(100, Math.round(stats.cancellationRate || 0))
+  }), [stats]);
 
-        const upcoming = bookingsData
-          .filter(booking => {
-            if (!booking.startDate) return false;
-            const bookingDate = new Date(booking.startDate);
-            // Lọc bookings trong tương lai và không bị cancelled
-            return bookingDate > now &&
-              booking.status !== 'cancelled' &&
-              booking.status !== 'rejected';
-          })
-          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
-          .slice(0, 3) // Chỉ lấy 3 booking gần nhất
-          .map(booking => ({
-            id: booking._id || booking.id,
-            guestName: booking.traveller?.name || 'Guest',
-            guestAvatar: booking.traveller?.pfp || booking.traveller?.avatar,
-            date: new Date(booking.startDate).toLocaleDateString('en-US', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric'
-            }),
-            time: booking.startTime || new Date(booking.startDate).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit'
-            }),
-            duration: `${booking.duration || 4}h`,
-            tourType: booking.destination?.name || 'Tour',
-            location: booking.destination?.city || booking.destination?.location || 'City Tour',
-            status: booking.status || 'confirmed',
-            price: booking.totalPrice || 0,
-            specialRequests: booking.specialRequests,
-            // Thêm các thông tin bổ sung nếu cần
-            bookingDate: booking.startDate,
-            destinationImage: booking.destination?.coverImg,
-            guestCount: booking.numberOfPeople || 1
-          }));
+  const verificationStatus = useMemo(() => {
+    if (!buddyProfile) return { completed: 0, total: 4 };
 
-        console.log('Processed upcoming bookings:', upcoming);
-        setUpcomingBookings(upcoming);
+    const steps = [
+      buddyProfile.emailVerified,
+      buddyProfile.phoneVerified,
+      buddyProfile.idVerified,
+      buddyProfile.backgroundCheckVerified
+    ];
 
-        if (upcoming.length === 0) {
-          console.log('No upcoming bookings found');
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
-      const message = error.response?.data?.message || error.message || 'Failed to load bookings';
-      setErrors(prev => ({ ...prev, bookings: message }));
-      toast.error('Failed to load bookings');
-    } finally {
-      setLoadingSections(prev => ({ ...prev, bookings: false }));
-    }
-  }, [buddyProfile, currentUser]); // Thêm dependencies
-
+    return {
+      completed: steps.filter(Boolean).length,
+      total: steps.length,
+      steps: [
+        { name: 'Email', completed: buddyProfile.emailVerified, icon: <FaEnvelope /> },
+        { name: 'Phone', completed: buddyProfile.phoneVerified, icon: <FaPhone /> },
+        { name: 'ID', completed: buddyProfile.idVerified, icon: <FaIdCard /> },
+        { name: 'Background', completed: buddyProfile.backgroundCheckVerified, icon: <FaShieldAlt /> }
+      ]
+    };
+  }, [buddyProfile]);
   // 4. Fetch recent messages - THÊM TRY-CATCH
   const fetchRecentMessages = useCallback(async () => {
     try {
@@ -407,6 +264,204 @@ function BuddyHomePage() {
       setLoadingSections(prev => ({ ...prev, messages: false }));
     }
   }, [formatTimeAgo]);
+  const fetchBuddyProfile = useCallback(async () => {
+    try {
+      setLoadingSections(prev => ({ ...prev, profile: true }));
+      setErrors(prev => ({ ...prev, profile: null }));
+
+      console.log('Fetching buddy profile...');
+      const response = await api.get('/buddies/my/profile/me');
+      console.log('Profile response:', response.data);
+
+      if (response.data.success) {
+        const profileData = response.data.data;
+
+        // ĐẢM BẢO CÓ FIELD isAvailableNow
+        if (profileData.isAvailableNow === undefined) {
+          console.warn('isAvailableNow field missing in response, setting default to true');
+          profileData.isAvailableNow = true;
+        }
+
+        setBuddyProfile(profileData);
+      }
+    } catch (error) {
+      console.error('Error fetching buddy profile:', error);
+      const message = error.response?.data?.message || error.message || 'Failed to load profile';
+      setErrors(prev => ({ ...prev, profile: message }));
+
+      if (error.response?.status === 401) {
+        toast.error('Please login again');
+        navigate('/login');
+      } else if (error.response?.status === 403) {
+        toast.error('Access denied. Only buddies can access this page');
+        navigate('/');
+      } else {
+        toast.error('Failed to load profile data');
+      }
+    } finally {
+      setLoadingSections(prev => ({ ...prev, profile: false }));
+    }
+  }, [navigate]);
+
+  // 3. Fetch upcoming bookings - SỬA LẠI ĐỂ TRÁNH INFINITE LOOP
+  const fetchUpcomingBookings = useCallback(async () => {
+    try {
+      setLoadingSections(prev => ({ ...prev, bookings: true }));
+      setErrors(prev => ({ ...prev, bookings: null }));
+
+      console.log('Fetching upcoming bookings...');
+
+      // Lấy userId từ currentUser trong localStorage
+      const userId = currentUser?._id;
+
+      if (!userId) {
+        console.log('No user ID available for fetching bookings');
+        setErrors(prev => ({ ...prev, bookings: 'User ID not found' }));
+        return;
+      }
+
+      console.log('Fetching bookings for user ID:', userId);
+
+      let response;
+      try {
+        // Sử dụng endpoint đúng với userId và role=tour-guide
+        response = await api.get(`/bookings/user/${userId}?role=tour-guide&limit=10`);
+      } catch (err) {
+        console.log('Primary endpoint failed:', err.message);
+
+        // Fallback: thử endpoint alternative
+        try {
+          response = await api.get('/bookings/my-bookings?limit=10');
+        } catch (err2) {
+          console.log('Fallback endpoint failed:', err2.message);
+          throw new Error('No booking endpoints available');
+        }
+      }
+
+      console.log('Bookings API response:', response.data);
+
+      if (response.data.success) {
+        const now = new Date();
+        const bookingsData = response.data.data || response.data.bookings || [];
+
+        console.log('Raw bookings data:', bookingsData);
+
+        const upcoming = bookingsData
+          .filter(booking => {
+            if (!booking.startDate) return false;
+            const bookingDate = new Date(booking.startDate);
+            // Lọc bookings trong tương lai
+            return bookingDate > now;
+          })
+          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+          .slice(0, 3)
+          .map(booking => ({
+            id: booking._id || booking.id,
+            guestName: booking.traveller?.name || 'Guest',
+            guestAvatar: booking.traveller?.pfp || booking.traveller?.avatar,
+            date: new Date(booking.startDate).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric'
+            }),
+            time: booking.startTime || new Date(booking.startDate).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            duration: `${booking.duration || 4}h`,
+            tourType: booking.destination?.name || 'Tour',
+            location: booking.destination?.city || booking.destination?.location || 'City Tour',
+            status: booking.status || 'confirmed',
+            price: booking.totalPrice || 0,
+            specialRequests: booking.specialRequests,
+            bookingDate: booking.startDate,
+            destinationImage: booking.destination?.coverImg,
+            guestCount: booking.numberOfPeople || 1
+          }));
+
+        console.log('Processed upcoming bookings:', upcoming);
+        setUpcomingBookings(upcoming);
+
+        if (upcoming.length === 0) {
+          console.log('No upcoming bookings found');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      const message = error.response?.data?.message || error.message || 'Failed to load bookings';
+      setErrors(prev => ({ ...prev, bookings: message }));
+      toast.error('Failed to load bookings');
+    } finally {
+      setLoadingSections(prev => ({ ...prev, bookings: false }));
+    }
+  }, [currentUser]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Fetch all data with retry logic
+
+  // Fetch buddy profile
+  // 1. Fetch buddy profile
+  // 1. Fetch buddy profile - SỬA ENDPOINT
+
+
+
+
+  // Thêm hàm xử lý booking actions
+  const handleBookingAction = useCallback(async (action, bookingId, data) => {
+    setIsProcessingBooking(true);
+    try {
+      let endpoint = '';
+      let method = 'PATCH';
+
+      switch (action) {
+        case 'confirm':
+          endpoint = `/bookings/${bookingId}/confirm`;
+          break;
+        case 'reject':
+          endpoint = `/bookings/${bookingId}/reject`;
+          break;
+        case 'complete':
+          endpoint = `/bookings/${bookingId}/complete`;
+          break;
+        default:
+          throw new Error('Invalid action');
+      }
+
+      const response = await api[method.toLowerCase()](endpoint, data);
+
+      if (response.data.success) {
+        toast.success(response.data.message);
+
+        // Refresh bookings data
+        await fetchUpcomingBookings();
+        await fetchBuddyStats();
+
+        // Close detail modal
+        setShowBookingDetail(false);
+        setSelectedBooking(null);
+      }
+    } catch (error) {
+      console.error(`Error ${action} booking:`, error);
+      toast.error(error.response?.data?.message || `Failed to ${action} booking`);
+    } finally {
+      setIsProcessingBooking(false);
+    }
+  }, [fetchUpcomingBookings, fetchBuddyStats]);
+
+
 
   // Fetch recent messages
   // const fetchRecentMessages = useCallback(async () => {
@@ -437,19 +492,37 @@ function BuddyHomePage() {
   // }, []);
 
 
-  // Format last refreshed time
-  const formatLastRefreshed = useCallback(() => {
-    return lastRefreshed.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }, [lastRefreshed]);
 
+  const fetchAllData = useCallback(async (showToast = false) => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        fetchBuddyProfile(),
+        fetchBuddyStats(),
+        fetchUpcomingBookings(),
+        fetchRecentMessages()
+      ]);
+
+      setLastRefreshed(new Date());
+      if (showToast) {
+        toast.success('Dashboard updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setIsRefreshing(false);
+      setIsLoading(false);
+    }
+  }, []);
   // Load all data on mount
+  // Sửa useEffect chính:
   useEffect(() => {
-    fetchAllData();
+    // Chỉ gọi khi component mount lần đầu
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      fetchAllData();
+    }
   }, [fetchAllData]);
-
   // Auto-refresh every 2 minutes
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -503,18 +576,18 @@ function BuddyHomePage() {
     toast.info('Logged out successfully');
   }, [navigate]);
 
-  // const handleRetry = useCallback((section) => {
-  //   const fetchFunctions = {
-  //     profile: fetchBuddyProfile,
-  //     stats: fetchBuddyStats,
-  //     bookings: fetchUpcomingBookings,
-  //     messages: fetchRecentMessages
-  //   };
+  const handleRetry = useCallback((section) => {
+    const fetchFunctions = {
+      profile: fetchBuddyProfile,
+      stats: fetchBuddyStats,
+      bookings: fetchUpcomingBookings,
+      messages: fetchRecentMessages
+    };
 
-  //   if (fetchFunctions[section]) {
-  //     fetchFunctions[section]();
-  //   }
-  // }, [fetchBuddyProfile, fetchBuddyStats, fetchUpcomingBookings, fetchRecentMessages]);
+    if (fetchFunctions[section]) {
+      fetchFunctions[section]();
+    }
+  }, [fetchBuddyProfile, fetchBuddyStats, fetchUpcomingBookings, fetchRecentMessages]);
 
   const handleRefreshData = useCallback(() => {
     fetchAllData(true);
@@ -873,7 +946,7 @@ function BuddyHomePage() {
                   <BookingCard
                     key={booking.id}
                     booking={booking}
-                    onClick={() => handleViewAll(`/bookings/${booking.id}`)}
+                    onClick={() => handleBookingClick(booking)}
                   />
                 ))}
               </div>
@@ -1031,6 +1104,25 @@ function BuddyHomePage() {
               </div>
             </div>
           </section>
+          {/* Modal for Booking Details - THÊM VÀO CUỐI */}
+          {showBookingDetail && (
+            <div className="modal-overlay" onClick={() => setShowBookingDetail(false)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <BookingDetailCard
+                  booking={selectedBooking}
+                  onClose={() => {
+                    setShowBookingDetail(false);
+                    setSelectedBooking(null);
+                  }}
+                  onConfirm={(bookingId) => handleBookingAction('confirm', bookingId)}
+                  onReject={(bookingId, reason) => handleBookingAction('reject', bookingId, { reason })}
+                  onComplete={(bookingId, notes) => handleBookingAction('complete', bookingId, { notes })}
+                  isLoading={isProcessingBooking}
+                  userRole="tour-guide"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

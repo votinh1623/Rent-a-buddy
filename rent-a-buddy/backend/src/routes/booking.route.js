@@ -9,8 +9,11 @@ import {
   addReviewToBooking,
   getBuddyStatistics,
   updateBookingPayment,
-  getUpcomingBookings, // Thêm hàm này
-  getBookingStats // Thêm hàm này
+  getUpcomingBookings,
+  getBookingStats,
+  confirmBooking,       
+  rejectBooking,         
+  completeBooking,  
 } from '../controllers/booking.controller.js';
 import { auth, adminAuth } from '../middleware/auth.middleware.js';
 import Booking from '../models/booking.model.js';
@@ -141,7 +144,9 @@ router.get('/:id', checkBookingOwnership, getBookingById);
 router.patch('/:id/status', checkBookingOwnership, updateBookingStatus);
 router.patch('/:id/payment', checkBookingOwnership, updateBookingPayment);
 router.post('/:id/review', checkReviewAuthor, addReviewToBooking);
-
+router.patch('/:id/confirm', checkBookingOwnership, confirmBooking);
+router.patch('/:id/reject', checkBookingOwnership, rejectBooking);
+router.patch('/:id/complete', checkBookingOwnership, completeBooking);
 // 3. Routes có tham số user ID
 router.get('/user/:userId', checkUserIdAccess, getUserBookings);
 router.get('/buddy/:buddyId/stats', checkBuddyStatsAccess, getBuddyStatistics);

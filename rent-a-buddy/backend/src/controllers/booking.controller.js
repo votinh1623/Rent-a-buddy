@@ -5,7 +5,7 @@ import Destination from '../models/destination.model.js';
 import mongoose from 'mongoose';
 export const createBooking = async (req, res) => {
   try {
-    const { 
+    const {
       buddy, // guide id
       destination,
       activities = [],
@@ -138,7 +138,7 @@ export const createBooking = async (req, res) => {
 export const getBookingById = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const booking = await Booking.findById(id)
       .populate('traveller', 'name email phoneNumber pfp')
       .populate('buddy', 'name email phoneNumber pfp rating hourlyRate languages bio')
@@ -181,7 +181,7 @@ export const getUserBookings = async (req, res) => {
     const limitNum = parseInt(limit);
     const pageNum = parseInt(page);
     const skip = (pageNum - 1) * limitNum;
-    
+
     // Kiểm tra nếu userId là ObjectId hợp lệ
     let userObjectId = userId;
     if (mongoose.Types.ObjectId.isValid(userId)) {
@@ -190,7 +190,7 @@ export const getUserBookings = async (req, res) => {
 
     // Xác định vai trò: ưu tiên query params, sau đó đến user role
     const searchRole = role || req.user?.role || 'traveller';
-    
+
     if (searchRole === 'tour-guide') {
       query.buddy = userObjectId;
       console.log('Searching as BUDDY');
@@ -314,8 +314,8 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     if (status === 'cancelled' && cancelledBy) {
-      if ((cancelledBy === 'traveller' && !isTraveller) || 
-          (cancelledBy === 'buddy' && !isBuddy)) {
+      if ((cancelledBy === 'traveller' && !isTraveller) ||
+        (cancelledBy === 'buddy' && !isBuddy)) {
         return res.status(403).json({
           success: false,
           message: `Only ${cancelledBy} can cancel with this reason`
@@ -325,7 +325,7 @@ export const updateBookingStatus = async (req, res) => {
 
     // Update booking with status-specific dates
     booking.status = status;
-    
+
     if (status === 'confirmed') {
       booking.confirmationDate = new Date();
     } else if (status === 'cancelled') {
@@ -334,7 +334,7 @@ export const updateBookingStatus = async (req, res) => {
       if (cancellationReason) {
         booking.cancellationReason = cancellationReason;
       }
-      
+
       // Update buddy cancellation rate
       if (booking.buddy) {
         const buddy = await User.findById(booking.buddy);
@@ -347,7 +347,7 @@ export const updateBookingStatus = async (req, res) => {
       }
     } else if (status === 'completed') {
       booking.completionDate = new Date();
-      
+
       // Update buddy stats
       if (booking.buddy) {
         const buddy = await User.findById(booking.buddy);
@@ -432,22 +432,22 @@ export const getBuddyAvailability = async (req, res) => {
       const [start, end] = slot.split('-');
       const [startHour, startMinute] = start.split(':').map(Number);
       const [endHour, endMinute] = end.split(':').map(Number);
-      
+
       let currentHour = startHour;
       let currentMinute = startMinute;
-      
+
       while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
         const slotTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
         const slotDateTime = new Date(requestedDate);
         slotDateTime.setHours(currentHour, currentMinute);
-        
+
         // Check if slot is booked
         const isBooked = bookedSlots.some(booking => {
           const bookingStart = booking.startDate;
           const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60 * 60 * 1000);
           return slotDateTime >= bookingStart && slotDateTime < bookingEnd;
         });
-        
+
         timeSlots.push({
           time: slotTime,
           isAvailable: !isBooked,
@@ -457,7 +457,7 @@ export const getBuddyAvailability = async (req, res) => {
             rating: buddy.rating
           }
         });
-        
+
         // Move to next hour (assuming 1-hour slots)
         currentHour += 1;
         if (currentHour === 24) break;
@@ -748,9 +748,9 @@ export const getUpcomingBookings = async (req, res) => {
     const userId = req.user._id;
     const user = await User.findById(userId);
     const now = new Date();
-    
+
     let query = {};
-    
+
     if (user.role === 'tour-guide') {
       // For buddies: get upcoming bookings where they are the guide
       query = {
@@ -766,16 +766,16 @@ export const getUpcomingBookings = async (req, res) => {
         startDate: { $gte: now }
       };
     }
-    
+
     const limit = parseInt(req.query.limit) || 10;
-    
+
     const bookings = await Booking.find(query)
       .populate(user.role === 'tour-guide' ? 'traveller' : 'buddy', 'name avatar')
       .populate('destination', 'name city')
       .sort({ startDate: 1 })
       .limit(limit)
       .lean();
-    
+
     res.status(200).json({
       success: true,
       count: bookings.length,
@@ -795,12 +795,289 @@ export const getUpcomingBookings = async (req, res) => {
         specialRequests: booking.specialRequests
       }))
     });
-    
+
   } catch (error) {
     console.error('Error fetching upcoming bookings:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching upcoming bookings',
+      error: error.message
+    });
+  }
+};
+/**
+ * @desc    Confirm a booking (for tour-guide)
+ * @route   PATCH /api/bookings/:id/confirm
+ * @access  Private (tour-guide only)
+ */
+export const confirmBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body || {}; // Thêm fallback {} nếu req.body undefined
+
+    console.log(`Tour guide ${req.user._id} confirming booking ${id}`);
+    console.log('Request body:', req.body); // Debug
+
+    const booking = await Booking.findById(id)
+      .populate('traveller', 'name email phoneNumber pfp')
+      .populate('buddy', 'name pfp rating')
+      .populate('destination', 'name coverImg');
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check if user is the buddy (tour-guide) of this booking
+    if (!booking.buddy._id.equals(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the assigned tour guide can confirm this booking'
+      });
+    }
+
+    // Check if booking is in pending status
+    if (booking.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Booking cannot be confirmed from ${booking.status} status`
+      });
+    }
+
+    // Check if booking date has passed
+    const now = new Date();
+    if (new Date(booking.startDate) < now) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot confirm a booking that has already started'
+      });
+    }
+
+    // Check for overlapping bookings
+    const overlappingBookings = await Booking.find({
+      buddy: req.user._id,
+      status: { $in: ['pending', 'confirmed'] },
+      _id: { $ne: booking._id },
+      $or: [
+        {
+          startDate: { $lt: booking.endDate },
+          endDate: { $gt: booking.startDate }
+        }
+      ]
+    });
+
+    if (overlappingBookings.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'You have overlapping bookings during this time slot',
+        data: {
+          overlappingBookings: overlappingBookings.map(b => ({
+            id: b._id,
+            startDate: b.startDate,
+            endDate: b.endDate,
+            status: b.status
+          }))
+        }
+      });
+    }
+
+    // Update booking
+    booking.status = 'confirmed';
+    booking.confirmationDate = new Date();
+    booking.confirmedBy = req.user._id;
+
+    if (notes) {
+      booking.guideNotes = notes;
+    }
+
+    await booking.save();
+
+    // Update buddy statistics (optional)
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $inc: { confirmedBookings: 1 } },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking confirmed successfully',
+      data: booking
+    });
+
+  } catch (error) {
+    console.error('Error confirming booking:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+/**
+ * @desc    Reject a booking (for tour-guide)
+ * @route   PATCH /api/bookings/:id/reject
+ * @access  Private (tour-guide only)
+ */
+export const rejectBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason || reason.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a detailed rejection reason (minimum 10 characters)'
+      });
+    }
+
+    const booking = await Booking.findById(id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check if user is the buddy (tour-guide) of this booking
+    if (!booking.buddy.equals(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the assigned tour guide can reject this booking'
+      });
+    }
+
+    // Check if booking is in pending status
+    if (booking.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Booking cannot be rejected from ${booking.status} status`
+      });
+    }
+
+    // Update booking
+    booking.status = 'rejected';
+    booking.rejectionDate = new Date();
+    booking.rejectionReason = reason;
+    booking.rejectedBy = req.user._id;
+
+    await booking.save();
+
+    // Update buddy cancellation rate (optional)
+    const buddy = await User.findById(req.user._id);
+    if (buddy && buddy.role === 'tour-guide') {
+      const newCancellationRate = buddy.cancellationRate || 0;
+      // Slightly increase cancellation rate for rejections
+      buddy.cancellationRate = Math.min(100, newCancellationRate + 2);
+      await buddy.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking rejected successfully',
+      data: booking
+    });
+
+  } catch (error) {
+    console.error('Error rejecting booking:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Mark booking as completed (for tour-guide)
+ * @route   PATCH /api/bookings/:id/complete
+ * @access  Private (tour-guide only)
+ */
+export const completeBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes, rating } = req.body;
+
+    const booking = await Booking.findById(id)
+      .populate('traveller', 'name email pfp')
+      .populate('buddy', 'name pfp rating');
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check if user is the buddy (tour-guide) of this booking
+    if (!booking.buddy._id.equals(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the assigned tour guide can mark booking as completed'
+      });
+    }
+
+    // Check if booking is in confirmed status
+    if (booking.status !== 'confirmed') {
+      return res.status(400).json({
+        success: false,
+        message: `Booking cannot be marked as completed from ${booking.status} status`
+      });
+    }
+
+    // Check if booking end date has passed
+    const now = new Date();
+    if (booking.endDate > now) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot complete booking before its scheduled end time'
+      });
+    }
+
+    // Update booking
+    booking.status = 'completed';
+    booking.completionDate = new Date();
+
+    if (notes) {
+      booking.completionNotes = notes;
+    }
+
+    await booking.save();
+
+    // Update buddy statistics
+    const buddy = await User.findById(req.user._id);
+    if (buddy && buddy.role === 'tour-guide') {
+      buddy.completedBookings += 1;
+
+      // Calculate total earnings
+      const totalEarnings = buddy.totalEarnings || 0;
+      buddy.totalEarnings = totalEarnings + booking.totalPrice;
+
+      // Update rating if provided
+      if (rating && rating >= 1 && rating <= 5) {
+        buddy.rating = {
+          average: ((buddy.rating?.average || 0) * (buddy.rating?.count || 0) + rating) / ((buddy.rating?.count || 0) + 1),
+          count: (buddy.rating?.count || 0) + 1
+        };
+      }
+
+      await buddy.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking marked as completed successfully',
+      data: booking
+    });
+
+  } catch (error) {
+    console.error('Error completing booking:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
       error: error.message
     });
   }
@@ -811,15 +1088,15 @@ export const getBookingStats = async (req, res) => {
   try {
     const userId = req.user._id;
     const user = await User.findById(userId);
-    
+
     let matchQuery = {};
-    
+
     if (user.role === 'tour-guide') {
       matchQuery.buddy = userId;
     } else {
       matchQuery.traveller = userId;
     }
-    
+
     const stats = await Booking.aggregate([
       {
         $match: matchQuery
@@ -832,14 +1109,14 @@ export const getBookingStats = async (req, res) => {
         }
       }
     ]);
-    
+
     // Format stats
     const formattedStats = {
       total: 0,
       totalRevenue: 0,
       byStatus: {}
     };
-    
+
     stats.forEach(stat => {
       formattedStats.total += stat.count;
       formattedStats.totalRevenue += stat.totalRevenue;
@@ -848,7 +1125,7 @@ export const getBookingStats = async (req, res) => {
         revenue: stat.totalRevenue
       };
     });
-    
+
     // Add additional stats
     const now = new Date();
     const upcomingCount = await Booking.countDocuments({
@@ -856,21 +1133,21 @@ export const getBookingStats = async (req, res) => {
       status: { $in: ['pending', 'confirmed'] },
       startDate: { $gte: now }
     });
-    
+
     const pastCount = await Booking.countDocuments({
       ...matchQuery,
       startDate: { $lt: now }
     });
-    
+
     formattedStats.upcomingCount = upcomingCount;
     formattedStats.pastCount = pastCount;
     formattedStats.userRole = user.role;
-    
+
     res.status(200).json({
       success: true,
       data: formattedStats
     });
-    
+
   } catch (error) {
     console.error('Error fetching booking stats:', error);
     res.status(500).json({
