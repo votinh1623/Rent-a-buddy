@@ -106,7 +106,7 @@ export const createBooking = async (req, res) => {
       totalPrice: finalPrice,
       paymentMethod: paymentMethod || 'cash',
       status: 'pending',
-      paymentStatus: paymentMethod === 'cash' ? 'pending' : 'paid',
+      paymentStatus: 'pending' , //paymentMethod === 'cash' ? 
       bookingDate: new Date()
     });
 

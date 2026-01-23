@@ -6,16 +6,29 @@ import { useLocation } from 'react-router-dom';
 import { logout } from '../../service/authService';
 import { toast } from 'react-toastify';
 import SelectByPreference from '../../components/SelectByPreference/SelectByPreference.jsx';
+import {
+  FaUserCircle,
+  FaEdit,
+  FaWallet,
+  FaCalendarDay,
+  FaUser,
+  FaCog,
+  FaSignOutAlt,
+  FaChevronRight
+} from 'react-icons/fa';
 
 function HomePage() {
   const [currentBuddy, setCurrentBuddy] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [shouldHighlightPreference, setShouldHighlightPreference] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const preferenceSectionRef = useRef(null);
-  const stepsSectionRef = useRef(null); // Thêm ref cho steps section
+  const stepsSectionRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // Kiểm tra trạng thái đăng nhập khi component mount
   useEffect(() => {
@@ -34,6 +47,7 @@ function HomePage() {
         try {
           const user = JSON.parse(userData);
           setUserRole(user.role);
+          setUserData(user);
           
           // Nếu user là tour-guide, redirect đến buddy home
           if (user.role === 'tour-guide' && location.pathname === '/home/homepage') {
@@ -48,6 +62,20 @@ function HomePage() {
     window.addEventListener('storage', checkLoginStatus);
     return () => window.removeEventListener('storage', checkLoginStatus);
   }, [navigate, location]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     // Kiểm tra nếu URL có hash '#select-preferences'
@@ -85,6 +113,8 @@ function HomePage() {
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
         setIsLoggedIn(false);
+        setUserData(null);
+        setShowProfileDropdown(false);
         toast.success("Logged out successfully!");
         navigate("/homepage");
       } catch (err) {
@@ -97,7 +127,38 @@ function HomePage() {
   const handleLogin = () => {
     navigate("/login");
   };
-// Nếu là buddy, hiển thị link đến buddy home
+
+  const toggleProfileDropdown = () => {
+    setShowProfileDropdown(prev => !prev);
+  };
+
+  // Navigation handlers
+  const handleViewAll = (path) => {
+    navigate(path);
+    setShowProfileDropdown(false);
+  };
+
+  const handleQuickAction = (action) => {
+    switch (action) {
+      case 'editProfile':
+        if (userRole === 'tour-guide') {
+          navigate('/buddy/profile/edit');
+        } else {
+          navigate('/profile/edit');
+        }
+        break;
+      case 'viewEarnings':
+        if (userRole === 'tour-guide') {
+          navigate('/buddy/earnings');
+        }
+        break;
+      default:
+        break;
+    }
+    setShowProfileDropdown(false);
+  };
+
+  // Nếu là buddy, hiển thị link đến buddy home
   const getHomeLink = () => {
     if (userRole === 'tour-guide') {
       return '/home/buddy-home';
@@ -106,6 +167,7 @@ function HomePage() {
     }
     return '/home/homepage';
   };
+
   const handleFindBuddyClick = () => {
     setShouldHighlightPreference(true);
     
@@ -225,20 +287,111 @@ function HomePage() {
               Sign In
             </button>
           ) : (
-            <>
-              <button className="profile-btn" onClick={() => navigate("/profile")}>
-                My Profile
+            <div className="profile-dropdown-container" ref={dropdownRef}>
+              <button className="profile-btn-header" onClick={toggleProfileDropdown}>
+                {userData?.pfp ? (
+                  <img
+                    src={userData.pfp}
+                    alt={userData.name}
+                    className="profile-avatar-small"
+                  />
+                ) : (
+                  <div className="profile-avatar-fallback">
+                    <FaUserCircle />
+                  </div>
+                )}
+                <span className="profile-name-header">{userData?.name?.split(' ')[0] || 'User'}</span>
+                <FaChevronRight className={`dropdown-arrow ${showProfileDropdown ? 'open' : ''}`} />
               </button>
-              <button className="logout-btn" onClick={handleLogout}>
-                Sign Out
-              </button>
-            </>
+
+              {showProfileDropdown && (
+                <div className="profile-dropdown">
+                  <div className="dropdown-header">
+                    <div className="user-profile-summary">
+                      {userData?.pfp ? (
+                        <img
+                          src={userData.pfp}
+                          alt={userData.name}
+                          className="dropdown-avatar"
+                        />
+                      ) : (
+                        <div className="dropdown-avatar-fallback">
+                          <FaUserCircle />
+                        </div>
+                      )}
+                      <div className="user-details">
+                        <h4>{userData?.name}</h4>
+                        <p className="user-email">{userData?.email}</p>
+                        <div className="user-role">
+                          <span className={`role-badge ${userRole}`}>
+                            {userRole === 'tour-guide' ? 'Tour Guide' : 'Traveller'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="dropdown-menu">
+                    <button className="dropdown-item" onClick={() => handleViewAll('/profile')}>
+                      <FaUserCircle />
+                      <span>My Profile</span>
+                    </button>
+                    
+                    {userRole === 'tour-guide' && (
+                      <>
+                        <button className="dropdown-item" onClick={() => handleQuickAction('editProfile')}>
+                          <FaEdit />
+                          <span>Edit Profile</span>
+                        </button>
+                        <button className="dropdown-item" onClick={() => handleQuickAction('viewEarnings')}>
+                          <FaWallet />
+                          <span>Earnings & Payouts</span>
+                        </button>
+                        <button className="dropdown-item" onClick={() => handleViewAll('/buddy/bookings')}>
+                          <FaCalendarDay />
+                          <span>My Bookings</span>
+                        </button>
+                        <button className="dropdown-item" onClick={() => handleViewAll('/buddy/tours')}>
+                          <FaUser />
+                          <span>My Tours</span>
+                        </button>
+                      </>
+                    )}
+                    
+                    {userRole === 'traveller' && (
+                      <>
+                        <button className="dropdown-item" onClick={() => handleViewAll('/my-bookings')}>
+                          <FaCalendarDay />
+                          <span>My Bookings</span>
+                        </button>
+                        <button className="dropdown-item" onClick={() => handleViewAll('/my-trips')}>
+                          <FaUser />
+                          <span>My Trips</span>
+                        </button>
+                      </>
+                    )}
+
+                    <div className="dropdown-divider"></div>
+
+                    <button className="dropdown-item" onClick={() => handleViewAll('/settings')}>
+                      <FaCog />
+                      <span>Settings</span>
+                    </button>
+                    <button className="dropdown-item logout" onClick={handleLogout}>
+                      <FaSignOutAlt />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </nav>
       </header>
 
-      {/* Hero Section */}
+      {/* ... rest of the HomePage content remains the same ... */}
       <main className="main">
+        {/* Hero Section */}
         <div className="hero">
           <div className="hero-content">
             <h1 className="hero-title">
