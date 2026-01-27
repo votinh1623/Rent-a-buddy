@@ -806,6 +806,7 @@ function BuddyHomePage() {
           value={`$${stats.totalEarnings.toLocaleString()}`}
           icon={<FaMoneyBillWave />}
           trend={`+$${stats.monthlyEarnings} this month`}
+          trendDirection={stats.monthlyEarnings > 0 ? 'up' : 'down'}
           color="earning"
           loading={loadingSections.stats}
           error={errors.stats}
@@ -817,6 +818,7 @@ function BuddyHomePage() {
           value={stats.completedTours}
           icon={<FaUsers />}
           trend={`${stats.pendingBookings} pending`}
+          trendDirection="up"
           color="tours"
           loading={loadingSections.stats}
           error={errors.stats}
@@ -828,6 +830,7 @@ function BuddyHomePage() {
           value={stats.averageRating.toFixed(1)}
           icon={<FaStar />}
           trend={stats.averageRating >= 4.5 ? 'Excellent!' : 'Good work'}
+          trendDirection={stats.averageRating >= 4.5 ? 'up' : 'neutral'}
           color="rating"
           loading={loadingSections.stats}
           error={errors.stats}
@@ -839,6 +842,7 @@ function BuddyHomePage() {
           value={`${stats.responseRate}%`}
           icon={<FaComments />}
           trend={`${stats.totalBookings} total bookings`}
+          trendDirection={stats.responseRate > 80 ? 'up' : 'neutral'}
           color="response"
           loading={loadingSections.stats}
           error={errors.stats}

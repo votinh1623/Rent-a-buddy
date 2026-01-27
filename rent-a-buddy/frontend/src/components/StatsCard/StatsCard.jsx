@@ -1,5 +1,6 @@
 // src/components/StatsCard/StatsCard.jsx
 import React from 'react';
+import { FaArrowUp, FaArrowDown, FaMinus } from 'react-icons/fa';
 import './StatsCard.scss';
 
 const StatsCard = ({ 
@@ -7,6 +8,7 @@ const StatsCard = ({
   value, 
   icon, 
   trend, 
+  trendDirection = 'up', // 'up', 'down', or 'neutral'
   color = 'primary',
   loading = false,
   error = null,
@@ -24,6 +26,19 @@ const StatsCard = ({
         return 'response';
       default:
         return 'primary';
+    }
+  };
+
+  const getTrendIcon = () => {
+    switch(trendDirection) {
+      case 'up':
+        return <FaArrowUp className="trend-icon" />;
+      case 'down':
+        return <FaArrowDown className="trend-icon" />;
+      case 'neutral':
+        return <FaMinus className="trend-icon" />;
+      default:
+        return <FaArrowUp className="trend-icon" />;
     }
   };
 
@@ -60,19 +75,22 @@ const StatsCard = ({
 
   return (
     <div className={`stats-card ${colorClass}`}>
-      <div className="stat-icon">
-        {icon}
+      <div className="stat-decoration"></div>
+      <div className="stat-icon-container">
+        <div className="stat-icon">
+          {icon}
+        </div>
       </div>
       <div className="stat-content">
         <h3 className="stat-value">{value}</h3>
         <p className="stat-title">{title}</p>
         {trend && (
           <span className="stat-trend">
+            {getTrendIcon()}
             {trend}
           </span>
         )}
       </div>
-      <div className="stat-decoration"></div>
     </div>
   );
 };
