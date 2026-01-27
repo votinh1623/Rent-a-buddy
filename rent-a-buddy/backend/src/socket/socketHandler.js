@@ -1,168 +1,160 @@
-// backend/src/socket/socketHandler.js
-import { Server } from 'socket.io';
-// import { Conversation, Message } from '../models/conversation.model.js';
-
-// Store online users
-const onlineUsers = new Map(); // userId -> socketId
-
+// socket/socketHandler.js
+import { Server } from "socket.io";
+import Message from "../models/message.model.js";
+import Conversation from "../models/conversation.model.js";
 export const initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      origin: ["http://localhost:5173", "http://localhost:3000"], // Cả hai port của React
+      methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true
-    }
+    },
+    transports: ['websocket', 'polling'] // Hỗ trợ cả hai loại transport
   });
 
-  // Socket.io middleware for authentication
-  io.use(async (socket, next) => {
-    try {
-      const token = socket.handshake.auth.token;
-      
-      // Verify token (similar to auth middleware)
-      // const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-      // const user = await User.findById(decoded.userId);
-      
-      // For demo, we'll just use the userId from handshake
-      const userId = socket.handshake.auth.userId;
-      if (!userId) {
-        return next(new Error('Authentication error'));
-      }
-      
-      socket.userId = userId;
-      next();
-    } catch (error) {
-      next(new Error('Authentication error'));
-    }
-  });
+  // Lưu trữ user socket mapping
+  const userSocketMap = new Map(); // { userId: socketId }
 
   io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.userId}`);
-    
-    // Add user to online users
-    onlineUsers.set(socket.userId, socket.id);
-    
-    // Join user to their personal room
-    socket.join(`user_${socket.userId}`);
-    
-    // Join conversation rooms user is part of
-    socket.on('joinConversations', async (conversationIds) => {
-      conversationIds.forEach(conversationId => {
-        socket.join(`conversation_${conversationId}`);
-      });
+    console.log('🔌 New client connected:', socket.id);
+
+    // Lấy userId từ query params khi kết nối
+    const userId = socket.handshake.query.userId;
+    if (userId) {
+      userSocketMap.set(userId, socket.id);
+      console.log(`✅ User ${userId} connected with socket ${socket.id}`);
+
+      // Gửi danh sách online users cho tất cả clients
+      const onlineUsers = Array.from(userSocketMap.keys());
+      io.emit('getOnlineUsers', onlineUsers);
+    }
+
+    // Event khi user tham gia (có thể dùng để đồng bộ)
+    socket.on('new-user-add', (userId) => {
+      if (userId && !userSocketMap.has(userId)) {
+        userSocketMap.set(userId, socket.id);
+        const onlineUsers = Array.from(userSocketMap.keys());
+        io.emit('getOnlineUsers', onlineUsers);
+        console.log(`➕ User ${userId} added to online list`);
+      }
     });
-    
-    // Handle sending message
-    socket.on('sendMessage', async (data) => {
+
+    // Gửi và nhận tin nhắn
+    socket.on('sendMessage', async (messageData) => {
+      const { receiverId, conversationId, content, senderId, messageType } = messageData;
+      console.log('📨 Message received:', { receiverId, conversationId, content });
+
       try {
-        const { conversationId, content, messageType = 'text' } = data;
-        
-        // Save message to database
-        const message = new Message({
-          conversation: conversationId,
-          sender: socket.userId,
-          content,
-          messageType
+        // Lưu message vào database
+        const newMessage = await Message.create({
+          senderId: senderId,
+          receiverId: receiverId,
+          conversationId: conversationId,
+          content: content,
+          messageType: messageType || 'text'
         });
-        
-        await message.save();
-        
-        // Update conversation
-        const conversation = await Conversation.findById(conversationId);
-        if (conversation) {
-          conversation.lastMessage = {
-            text: content,
-            sender: socket.userId,
-            timestamp: new Date()
-          };
-          
-          await conversation.incrementUnreadCount(socket.userId);
-          await conversation.save();
-          
-          // Populate sender info
-          await message.populate('sender', 'name pfp');
-          
-          // Broadcast to conversation room
-          io.to(`conversation_${conversationId}`).emit('newMessage', {
-            message: {
-              _id: message._id,
-              sender: {
-                _id: message.sender._id,
-                name: message.sender.name,
-                pfp: message.sender.pfp
-              },
-              content: message.content,
-              messageType: message.messageType,
-              createdAt: message.createdAt
-            },
-            conversation: {
-              _id: conversation._id,
-              lastMessage: conversation.lastMessage,
-              lastActivity: conversation.lastActivity
-            }
-          });
-          
-          // Notify other participants individually
-          conversation.participants.forEach(participant => {
-            if (!participant.equals(socket.userId)) {
-              io.to(`user_${participant}`).emit('messageNotification', {
-                conversationId,
-                senderId: socket.userId,
-                message: content.substring(0, 100),
-                unreadCount: 1
-              });
-            }
-          });
+
+        // Populate thông tin người gửi
+        const populatedMessage = await Message.findById(newMessage._id)
+          .populate('senderId', 'name pfp')
+          .populate('receiverId', 'name pfp');
+
+        // Gửi cho receiver nếu online
+        const receiverSocketId = userSocketMap.get(receiverId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit('receiveMessage', populatedMessage);
+          console.log(`📤 Message delivered to ${receiverId}`);
         }
+
+        // Gửi lại cho sender để confirm
+        socket.emit('messageSent', populatedMessage);
+
+        // Cập nhật conversation
+        await Conversation.findByIdAndUpdate(conversationId, {
+          lastMessage: populatedMessage._id,
+          lastActivity: new Date()
+        });
+
       } catch (error) {
-        console.error('Error in sendMessage:', error);
-        socket.emit('error', { message: 'Failed to send message' });
+        console.error('Error saving message:', error);
+        socket.emit('messageError', { error: 'Failed to save message' });
       }
     });
-    
-    // Handle typing indicator
-    socket.on('typing', ({ conversationId, isTyping }) => {
-      socket.to(`conversation_${conversationId}`).emit('userTyping', {
-        userId: socket.userId,
-        conversationId,
-        isTyping
-      });
+
+
+    // Chỉnh sửa tin nhắn
+    socket.on('editMessage', ({ messageId, newContent }) => {
+      console.log(`✏️ Message ${messageId} edited`);
+      // Broadcast to all clients in the conversation
+      io.emit('messageEdited', { _id: messageId, content: newContent, isEdited: true });
     });
-    
-    // Handle message read
-    socket.on('markAsRead', async ({ conversationId }) => {
-      try {
-        const conversation = await Conversation.findById(conversationId);
-        if (conversation) {
-          await conversation.markAsRead(socket.userId);
-          
-          // Notify others that user has read messages
-          socket.to(`conversation_${conversationId}`).emit('messagesRead', {
-            userId: socket.userId,
-            conversationId
-          });
-        }
-      } catch (error) {
-        console.error('Error marking as read:', error);
+
+    // Xóa tin nhắn
+    socket.on('deleteMessage', ({ messageId }) => {
+      console.log(`🗑️ Message ${messageId} deleted`);
+      io.emit('messageDeleted', { messageId });
+    });
+
+    // Đánh dấu đã đọc
+    socket.on('markAsRead', ({ conversationId }) => {
+      console.log(`👁️ Conversation ${conversationId} marked as read`);
+      io.emit('unreadCountReset', { conversationId });
+    });
+
+    // Video call events
+    socket.on('call-user', (data) => {
+      const { receiverId, roomId, callerId, callerName, pfp, conversationId } = data;
+      console.log(`📞 Call from ${callerId} to ${receiverId}, room: ${roomId}`);
+
+      const receiverSocketId = userSocketMap.get(receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('incoming-call', {
+          from: callerId,
+          name: callerName,
+          pfp: pfp,
+          roomId: roomId,
+          conversationId: conversationId
+        });
       }
     });
-    
-    // Handle disconnect
+
+    socket.on('accept-call', ({ roomId, callerId }) => {
+      console.log(`✅ Call accepted for room ${roomId}`);
+      const callerSocketId = userSocketMap.get(callerId);
+      if (callerSocketId) {
+        io.to(callerSocketId).emit('call-accepted', { roomId });
+      }
+    });
+
+    socket.on('reject-call', ({ callerId }) => {
+      console.log(`❌ Call rejected for caller ${callerId}`);
+      const callerSocketId = userSocketMap.get(callerId);
+      if (callerSocketId) {
+        io.to(callerSocketId).emit('call-rejected');
+      }
+    });
+
+    // Ngắt kết nối
     socket.on('disconnect', () => {
-      console.log(`User disconnected: ${socket.userId}`);
-      onlineUsers.delete(socket.userId);
-      
-      // Notify conversations user was in
-      io.emit('userOffline', { userId: socket.userId });
+      console.log('🔌 Client disconnected:', socket.id);
+
+      // Xóa user khỏi map khi disconnect
+      let disconnectedUserId = null;
+      for (const [userId, socketId] of userSocketMap.entries()) {
+        if (socketId === socket.id) {
+          disconnectedUserId = userId;
+          userSocketMap.delete(userId);
+          break;
+        }
+      }
+
+      if (disconnectedUserId) {
+        console.log(`➖ User ${disconnectedUserId} removed from online list`);
+        const onlineUsers = Array.from(userSocketMap.keys());
+        io.emit('getOnlineUsers', onlineUsers);
+      }
     });
   });
 
   return io;
-};
-
-// Helper to send notification via socket
-export const sendNotification = (io, userId, notification) => {
-  const socketId = onlineUsers.get(userId);
-  if (socketId) {
-    io.to(socketId).emit('notification', notification);
-  }
 };

@@ -35,6 +35,7 @@ import {
   FaSync,
   FaChevronRight,
   FaCalendarDay,
+  FaCommentDots,
   FaEnvelope
 } from 'react-icons/fa';
 // import { FaUser } from 'react-icons/fa';
@@ -50,11 +51,20 @@ import ErrorRetry from '../../components/ErrorRetry/ErrorRetry';
 import StatsCard from '../../components/StatsCard/StatsCard';
 import BookingCard from '../../components/BookingCard/BookingCard';
 import MessageItem from '../../components/MessageItem/MessageItem';
-
+import useSocket from '../../hooks/useSocket';
+import useConversations from '../../hooks/useConversations';
 function BuddyHomePage() {
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const { socket, onlineUsers } = useSocket(currentUser?._id);
+  const { conversations, loading: loadingConvos, totalUnread } = useConversations(currentUser?._id);
+
+  // Đổi tên để tránh conflict
+  const [totalUnreadMessages, setTotalUnreadMessages] = useState(totalUnread);
+  useEffect(() => {
+    setTotalUnreadMessages(totalUnread);
+  }, [totalUnread]);
   const [loadingSections, setLoadingSections] = useState({
     profile: true,
     stats: true,
@@ -127,6 +137,7 @@ function BuddyHomePage() {
       setLoadingSections(prev => ({ ...prev, stats: false }));
     }
   }, []);
+
   // Thêm hàm xử lý khi click vào booking
   const handleBookingClick = useCallback((booking) => {
     // Fetch full booking details từ API
@@ -166,6 +177,12 @@ function BuddyHomePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(new Date());
   const dropdownRef = useRef(null);
+  useEffect(() => {
+    if (recentMessages.length > 0) {
+      const unreadCount = recentMessages.filter(msg => msg.unread).length;
+      setTotalUnreadMessages(unreadCount);
+    }
+  }, [recentMessages]);
   // Format time ago helper
   const formatTimeAgo = useCallback((date) => {
     const now = new Date();
@@ -678,7 +695,18 @@ function BuddyHomePage() {
                 }}
               />
             </button>
-
+            <button
+              className={`chat-btn ${totalUnreadMessages > 0 ? 'has-unread' : ''}`}
+              onClick={() => handleViewAll('/home/chat')}
+              title="Messages"
+            >
+              <FaCommentDots />
+              {totalUnreadMessages > 0 && (
+                <span className="chat-badge">
+                  {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+                </span>
+              )}
+            </button>
             <button
               className="notification-btn"
               onClick={() => handleViewAll('/buddy/notifications')}

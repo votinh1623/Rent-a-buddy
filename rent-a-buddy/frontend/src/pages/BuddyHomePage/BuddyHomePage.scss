@@ -141,6 +141,7 @@
           }
         }
 
+        .chat-btn,
         .refresh-btn,
         .notification-btn {
           width: 42px;
@@ -156,7 +157,7 @@
           color: #718096;
           border: 1px solid #e2e8f0;
           flex-shrink: 0;
-
+          position: relative; 
           /* QUAN TRỌNG: Reset và ép kích thước SVG */
           svg {
             font-size: 24px !important;
@@ -179,9 +180,11 @@
         }
 
         /* Thêm riêng cho notification badge */
+        .chat-btn,
         .notification-btn {
           position: relative;
 
+          .chat-badge,
           .notification-badge {
             position: absolute;
             top: -4px;
@@ -1002,6 +1005,7 @@
     }
   }
 }
+
 .modal-overlay {
   position: fixed;
   top: 0;

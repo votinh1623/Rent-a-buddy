@@ -17,22 +17,22 @@ export const getMessages = async (req, res) => {
     let messageQuery = Message.find({ conversationId });
     messageQuery = messageQuery.populate('senderId', 'name pfp');
 
-    if (populatePost) {
-      messageQuery = messageQuery.populate({
-        path: 'sharedPostId',
-        populate: [
-          { path: 'userId', select: 'name pfp' },
-          { path: 'storyId' },
-          {
-            path: 'originalPostId',
-            populate: [
-              { path: 'userId', select: 'name pfp' },
-              { path: 'storyId' }
-            ]
-          }
-        ]
-      });
-    }
+    // if (populatePost) {
+    //   messageQuery = messageQuery.populate({
+    //     path: 'sharedPostId',
+    //     populate: [
+    //       { path: 'userId', select: 'name pfp' },
+    //       { path: 'storyId' },
+    //       {
+    //         path: 'originalPostId',
+    //         populate: [
+    //           { path: 'userId', select: 'name pfp' },
+    //           { path: 'storyId' }
+    //         ]
+    //       }
+    //     ]
+    //   });
+    // }
 
     const messages = await messageQuery.sort({ createdAt: 1 });
 

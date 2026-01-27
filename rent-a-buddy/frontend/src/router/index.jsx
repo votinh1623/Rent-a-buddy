@@ -10,6 +10,7 @@ import SearchResultPage from "../pages/SearchResultPage/SearchResultPage.jsx";
 import BuddyProfilePage from '../pages/BuddyProfilePage/BuddyProfilePage.jsx';
 import BuddyHomePage from '../pages/BuddyHomePage/BuddyHomePage.jsx';
 // import ProfilePage from '../pages/ProfilePage/ProfilePage.jsx';
+import Chat from '../pages/Chat/Chat.jsx';
 
 // Component để redirect dựa trên role - ĐẶT Ở ĐÂU TRƯỚC KHI SỬ DỤNG
 const RoleRedirect = () => {
@@ -86,7 +87,7 @@ export const route = [
               // Role-based homepages
               { path: "traveller-home", element: <Homepage /> },
               { path: "buddy-home", element: <BuddyHomePage /> },
-              
+              { path: "chat", element: <Chat /> },
               // Feature routes
               { path: "select-preferences", element: <SelectByPreference /> },
               { path: "search-result", element: <SearchResultPage /> },

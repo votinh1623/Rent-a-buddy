@@ -1,0 +1,111 @@
+.call-modal {
+  .ant-modal-content {
+    border-radius: 24px;
+    padding: 30px 20px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+  }
+
+  .call-modal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+
+    .avatar-container {
+      position: relative;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+      .caller-avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #fff;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        z-index: 2;
+      }
+
+      .pulse-ring {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2px solid #4cd964;
+        animation: pulse 2s infinite;
+        z-index: 1;
+      }
+    }
+
+    .caller-name {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #333;
+      margin: 0 0 5px 0;
+    }
+
+    .call-status {
+      font-size: 0.95rem;
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    .call-actions {
+      display: flex;
+      gap: 40px;
+      align-items: center;
+
+      .action-btn {
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+        &:hover {
+          transform: scale(1.1);
+        }
+
+        &.accept-btn {
+          background-color: #4cd964;
+          color: white;
+
+          &:hover {
+            background-color: #42b956;
+            box-shadow: 0 6px 16px rgba(76, 217, 100, 0.4);
+          }
+        }
+
+        &.reject-btn {
+          background-color: #ff3b30;
+          color: white;
+
+          &:hover {
+            background-color: #d63026;
+            box-shadow: 0 6px 16px rgba(255, 59, 48, 0.4);
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
