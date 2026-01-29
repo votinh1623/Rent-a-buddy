@@ -15,6 +15,12 @@ const messageSchema = new mongoose.Schema(
       required: true
     },
 
+    receiverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+
     content: {
       type: String,
       trim: true
@@ -24,10 +30,6 @@ const messageSchema = new mongoose.Schema(
       enum: ['text', 'shared_post', "call", "image"],
       default: 'text'
     },
-    // sharedPostId: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: 'Post',
-    // },
     isRead: {
       type: Boolean,
       default: false

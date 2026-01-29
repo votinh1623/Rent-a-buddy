@@ -245,6 +245,25 @@ const Chat = () => {
             messageType: type
         };
 
+        // Optimistically update conversation list
+        const optimisticLastMessage = {
+            _id: tempId,
+            content: content.trim(),
+            senderId: currentUser._id,
+            createdAt: new Date().toISOString(),
+            messageType: type
+        };
+
+        setConversations(prev => prev.map(convo =>
+            convo._id === selectedConvo._id
+                ? {
+                    ...convo,
+                    lastMessage: optimisticLastMessage,
+                    updatedAt: new Date().toISOString()
+                }
+                : convo
+        ));
+
         socketRef.current.emit('sendMessage', messageData);
 
         const optimisticMessage = {
@@ -292,6 +311,55 @@ const Chat = () => {
         socket.on('messageDeleted', ({ messageId }) => {
             setMessages(prev => prev.filter(msg => msg._id !== messageId));
         });
+        socket.on('updateConversationLastMessage', ({ conversationId, lastMessage }) => {
+            console.log('Updating conversation last message:', { conversationId, lastMessage });
+
+            setConversations(prev => prev.map(convo =>
+                convo._id === conversationId
+                    ? {
+                        ...convo,
+                        lastMessage: lastMessage,
+                        updatedAt: new Date().toISOString(),
+                        // Tăng unread count nếu message không phải từ current user
+                        unreadCount: lastMessage.senderId === currentUser._id
+                            ? convo.unreadCount
+                            : convo.unreadCount + 1
+                    }
+                    : convo
+            ));
+        });
+
+        // Listener để reset unread count khi đọc message
+        socket.on('conversationRead', ({ conversationId }) => {
+            setConversations(prev => prev.map(convo =>
+                convo._id === conversationId
+                    ? { ...convo, unreadCount: 0 }
+                    : convo
+            ));
+        });
+
+        // Listener để cập nhật conversation khi có message mới từ conversation khác
+        socket.on('newMessageInConversation', ({ conversationId, message }) => {
+            // Nếu đây không phải conversation đang chọn, cập nhật lastMessage
+            if (selectedConvo?._id !== conversationId) {
+                setConversations(prev => prev.map(convo =>
+                    convo._id === conversationId
+                        ? {
+                            ...convo,
+                            lastMessage: {
+                                _id: message._id,
+                                content: message.content,
+                                senderId: message.senderId,
+                                createdAt: message.createdAt,
+                                messageType: message.messageType
+                            },
+                            updatedAt: new Date().toISOString(),
+                            unreadCount: convo.unreadCount + 1
+                        }
+                        : convo
+                ));
+            }
+        });
 
         return () => {
             socket.off("call-accepted");
@@ -300,8 +368,11 @@ const Chat = () => {
             socket.off('messageSent');
             socket.off('messageEdited');
             socket.off('messageDeleted');
+            socket.off('updateConversationLastMessage');
+            socket.off('conversationRead');
+            socket.off('newMessageInConversation');
         };
-    }, [socket, navigate, selectedConvo]);
+    }, [socket, navigate, selectedConvo, currentUser, setConversations]);
 
     const handlePhoneClick = () => {
         if (!selectedConvo || !currentUser) return;

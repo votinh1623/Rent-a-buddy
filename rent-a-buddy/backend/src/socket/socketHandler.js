@@ -40,44 +40,72 @@ export const initializeSocket = (server) => {
     });
 
     // Gửi và nhận tin nhắn
-    socket.on('sendMessage', async (messageData) => {
-      const { receiverId, conversationId, content, senderId, messageType } = messageData;
-      console.log('📨 Message received:', { receiverId, conversationId, content });
-
+    socket.on('sendMessage', async (data) => {
       try {
-        // Lưu message vào database
-        const newMessage = await Message.create({
-          senderId: senderId,
-          receiverId: receiverId,
-          conversationId: conversationId,
-          content: content,
-          messageType: messageType || 'text'
+        // 1. Tạo message mới
+        const message = new Message({
+          conversationId: data.conversationId,
+          senderId: data.senderId,
+          receiverId: data.receiverId,
+          content: data.content,
+          messageType: data.messageType || 'text'
         });
 
-        // Populate thông tin người gửi
-        const populatedMessage = await Message.findById(newMessage._id)
+        const savedMessage = await message.save();
+
+        // 2. Populate message
+        const populatedMessage = await Message.findById(savedMessage._id)
           .populate('senderId', 'name pfp')
-          .populate('receiverId', 'name pfp');
+          .populate('receiverId', 'name pfp')
+          .lean();
 
-        // Gửi cho receiver nếu online
-        const receiverSocketId = userSocketMap.get(receiverId);
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit('receiveMessage', populatedMessage);
-          console.log(`📤 Message delivered to ${receiverId}`);
-        }
+        // 3. Cập nhật conversation
+        const updatedConversation = await Conversation.findByIdAndUpdate(
+          data.conversationId,
+          {
+            $set: {
+              lastMessage: {
+                _id: savedMessage._id,
+                content: data.content,
+                senderId: data.senderId,
+                createdAt: savedMessage.createdAt,
+                messageType: data.messageType || 'text'
+              },
+              lastMessageAt: savedMessage.createdAt,
+              updatedAt: savedMessage.createdAt
+            },
+            $inc: {
+              [`unreadCounts.${data.receiverId}`]: 1
+            }
+          },
+          { new: true }
+        );
 
-        // Gửi lại cho sender để confirm
-        socket.emit('messageSent', populatedMessage);
+        // 4. Emit events
+        // 4a. Emit message tới conversation room
+        io.to(data.conversationId).emit('receiveMessage', populatedMessage);
 
-        // Cập nhật conversation
-        await Conversation.findByIdAndUpdate(conversationId, {
-          lastMessage: populatedMessage._id,
-          lastActivity: new Date()
+        // 4b. Emit update conversation last message tới cả hai users
+        io.to(data.conversationId).emit('updateConversationLastMessage', {
+          conversationId: data.conversationId,
+          lastMessage: {
+            _id: savedMessage._id,
+            content: data.content,
+            senderId: data.senderId,
+            createdAt: savedMessage.createdAt,
+            messageType: data.messageType || 'text'
+          }
+        });
+
+        // 4c. Emit new message event cho user nhận (để hiển thị notification)
+        io.to(data.receiverId).emit('newMessageInConversation', {
+          conversationId: data.conversationId,
+          message: populatedMessage
         });
 
       } catch (error) {
         console.error('Error saving message:', error);
-        socket.emit('messageError', { error: 'Failed to save message' });
+        socket.emit('messageError', { error: 'Failed to send message' });
       }
     });
 
@@ -96,9 +124,22 @@ export const initializeSocket = (server) => {
     });
 
     // Đánh dấu đã đọc
-    socket.on('markAsRead', ({ conversationId }) => {
-      console.log(`👁️ Conversation ${conversationId} marked as read`);
-      io.emit('unreadCountReset', { conversationId });
+    // Trong backend socket handler
+    socket.on('markAsRead', async ({ conversationId }) => {
+      try {
+        const conversation = await Conversation.findById(conversationId);
+        if (conversation) {
+          // Reset unread count cho user hiện tại
+          const userId = socket.userId; // Giả sử bạn đã lưu userId trong socket
+          conversation.unreadCounts.set(userId, 0);
+          await conversation.save();
+
+          // Emit event để cập nhật frontend
+          io.to(conversationId).emit('conversationRead', { conversationId });
+        }
+      } catch (error) {
+        console.error('Error marking as read:', error);
+      }
     });
 
     // Video call events
