@@ -226,8 +226,14 @@ const Chat = () => {
                 return [...prev, newMessage];
             });
 
-            if (currentUser && newMessage.senderId !== currentUser._id) {
-                socket?.emit('markAsRead', { conversationId: msgConvoId });
+            // Kiểm tra nếu message từ người khác
+            const isOtherUserMessage = newMessage.senderId?._id !== currentUser?._id;
+
+            if (isOtherUserMessage && socket) {
+                console.log('Marking message as read:', msgConvoId);
+                socket.emit('markAsRead', {
+                    conversationId: msgConvoId
+                });
             }
         }
     };
@@ -311,31 +317,50 @@ const Chat = () => {
         socket.on('messageDeleted', ({ messageId }) => {
             setMessages(prev => prev.filter(msg => msg._id !== messageId));
         });
-        socket.on('updateConversationLastMessage', ({ conversationId, lastMessage }) => {
+        socket.on('updateConversationLastMessage', ({ conversationId, lastMessage, unreadCount }) => {
             console.log('Updating conversation last message:', { conversationId, lastMessage });
 
-            setConversations(prev => prev.map(convo =>
-                convo._id === conversationId
-                    ? {
-                        ...convo,
-                        lastMessage: lastMessage,
-                        updatedAt: new Date().toISOString(),
-                        // Tăng unread count nếu message không phải từ current user
-                        unreadCount: lastMessage.senderId === currentUser._id
-                            ? convo.unreadCount
-                            : convo.unreadCount + 1
+            setConversations(prev => {
+                const updated = prev.map(convo => {
+                    if (convo._id === conversationId) {
+                        const updatedConvo = {
+                            ...convo,
+                            lastMessage: lastMessage,
+                            updatedAt: new Date().toISOString()
+                        };
+
+                        // Chỉ cập nhật unreadCount nếu được cung cấp
+                        if (unreadCount !== undefined) {
+                            updatedConvo.unreadCount = unreadCount;
+                        }
+
+                        return updatedConvo;
                     }
-                    : convo
-            ));
+                    return convo;
+                });
+
+                // Sắp xếp theo thời gian cập nhật
+                return updated.sort((a, b) => {
+                    const dateA = new Date(a.updatedAt || a.lastMessage?.createdAt || 0);
+                    const dateB = new Date(b.updatedAt || b.lastMessage?.createdAt || 0);
+                    return dateB - dateA;
+                });
+            });
         });
 
         // Listener để reset unread count khi đọc message
-        socket.on('conversationRead', ({ conversationId }) => {
-            setConversations(prev => prev.map(convo =>
-                convo._id === conversationId
-                    ? { ...convo, unreadCount: 0 }
-                    : convo
-            ));
+        // Listener cho conversationRead
+        socket.on('conversationRead', ({ conversationId, userId }) => {
+            console.log('Conversation read event:', { conversationId, userId });
+
+            // Nếu là current user, reset unread count
+            if (userId === currentUser._id) {
+                setConversations(prev => prev.map(convo =>
+                    convo._id === conversationId
+                        ? { ...convo, unreadCount: 0 }
+                        : convo
+                ));
+            }
         });
 
         // Listener để cập nhật conversation khi có message mới từ conversation khác
@@ -360,7 +385,14 @@ const Chat = () => {
                 ));
             }
         });
-
+        socket.on('unreadCountReset', ({ conversationId }) => {
+            console.log('Unread count reset:', conversationId);
+            setConversations(prev => prev.map(convo =>
+                convo._id === conversationId
+                    ? { ...convo, unreadCount: 0 }
+                    : convo
+            ));
+        });
         return () => {
             socket.off("call-accepted");
             socket.off("call-rejected");
@@ -369,6 +401,7 @@ const Chat = () => {
             socket.off('messageEdited');
             socket.off('messageDeleted');
             socket.off('updateConversationLastMessage');
+            socket.off('unreadCountReset');
             socket.off('conversationRead');
             socket.off('newMessageInConversation');
         };
@@ -501,13 +534,20 @@ const Chat = () => {
 
     useEffect(() => {
         if (!selectedConvo) return;
-        socket?.emit('markAsRead', { conversationId: selectedConvo._id });
+
         const fetchMessages = async () => {
             setLoadingMessages(true);
             try {
                 const res = await getMessages(selectedConvo._id);
                 if (res.success) {
                     setMessages(res.messages);
+
+                    // Reset unread count khi vào conversation
+                    if (socket) {
+                        socket.emit('markAsRead', {
+                            conversationId: selectedConvo._id
+                        });
+                    }
                 }
             } catch (err) {
                 antdMessage.error("Error loading messages.");
@@ -515,6 +555,7 @@ const Chat = () => {
                 setLoadingMessages(false);
             }
         };
+
         fetchMessages();
     }, [selectedConvo, socket]);
 

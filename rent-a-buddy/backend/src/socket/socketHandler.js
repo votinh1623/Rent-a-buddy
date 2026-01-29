@@ -125,17 +125,43 @@ export const initializeSocket = (server) => {
 
     // Đánh dấu đã đọc
     // Trong backend socket handler
+    // Trong backend socket handler (socketHandler.js)
     socket.on('markAsRead', async ({ conversationId }) => {
       try {
+        // Lấy userId từ socket (giả sử bạn đã attach khi kết nối)
+        const userId = socket.user?._id || socket.userId;
+
+        if (!userId) {
+          console.error('User ID is undefined in socket');
+          return;
+        }
+
+        console.log('Marking as read for user:', userId, 'conversation:', conversationId);
+
         const conversation = await Conversation.findById(conversationId);
         if (conversation) {
+          // Kiểm tra xem userId có phải là string không
+          if (typeof userId !== 'string') {
+            userId = String(userId);
+          }
+
           // Reset unread count cho user hiện tại
-          const userId = socket.userId; // Giả sử bạn đã lưu userId trong socket
           conversation.unreadCounts.set(userId, 0);
+
+          // Cập nhật seenBy array
+          if (!conversation.seenBy.includes(userId)) {
+            conversation.seenBy.push(userId);
+          }
+
           await conversation.save();
 
+          console.log('Conversation marked as read successfully');
+
           // Emit event để cập nhật frontend
-          io.to(conversationId).emit('conversationRead', { conversationId });
+          io.to(conversationId).emit('conversationRead', {
+            conversationId,
+            userId: userId
+          });
         }
       } catch (error) {
         console.error('Error marking as read:', error);

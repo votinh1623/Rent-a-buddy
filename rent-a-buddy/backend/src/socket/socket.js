@@ -112,16 +112,62 @@ export const initializeSocketIO = (socketServer) => {
 
     socket.on('markAsRead', async (data) => {
       try {
+        console.log('markAsRead data:', data); // Debug log
         const { conversationId } = data;
-        if (!userId || !conversationId) return;
 
-        await Conversation.updateOne(
+        // Kiểm tra userId từ socket handshake query
+        const socketUserId = socket.handshake.query.userId;
+
+        if (!socketUserId || socketUserId === "undefined") {
+          console.error('markAsRead: No valid userId found in socket');
+          return;
+        }
+
+        if (!conversationId) {
+          console.error('markAsRead: No conversationId provided');
+          return;
+        }
+
+        console.log(`markAsRead - userId: ${socketUserId}, conversationId: ${conversationId}`);
+
+        // Cập nhật unreadCounts trong database
+        const result = await Conversation.updateOne(
           { _id: conversationId },
-          { $set: { [`unreadCounts.${userId}`]: 0 } }
+          {
+            $set: {
+              [`unreadCounts.${socketUserId}`]: 0
+            },
+            $addToSet: {
+              seenBy: new mongoose.Types.ObjectId(socketUserId)
+            }
+          }
         );
-        socket.emit('unreadCountReset', { conversationId });
+
+        console.log('markAsRead update result:', result);
+
+        // Emit event để cập nhật frontend
+        socket.emit('unreadCountReset', {
+          conversationId,
+          userId: socketUserId
+        });
+
+        // Emit cho tất cả users trong conversation
+        const conversation = await Conversation.findById(conversationId);
+        if (conversation) {
+          conversation.participants.forEach(participant => {
+            const participantId = participant.userId.toString();
+            const participantSocketId = userSocketMap[participantId];
+            if (participantSocketId) {
+              global.io.to(participantSocketId).emit('conversationRead', {
+                conversationId,
+                userId: socketUserId
+              });
+            }
+          });
+        }
+
       } catch (err) {
-        console.error("Error marking as read:", err.message);
+        console.error("Error marking as read:", err.message, err.stack);
       }
     });
 
@@ -148,35 +194,52 @@ const internalSendMessage = async (content, receiverId, senderId, messageType = 
         { userId: senderId },
         { userId: receiverId }
       ],
-      unreadCounts: { [senderId]: 0, [receiverId]: 0 }
+      unreadCounts: new Map([
+        [senderId.toString(), 0],
+        [receiverId.toString(), 0]
+      ])
     });
   }
 
   const newMessage = new Message({
     conversationId: conversation._id,
     senderId: senderId,
+    receiverId: receiverId, // Thêm receiverId vào message
     content: content,
     messageType: messageType,
     sharedPostId: sharedPostId
   });
 
+  // Cập nhật lastMessage
   conversation.lastMessage = {
     _id: newMessage._id,
     content: newMessage.content,
     senderId: senderId,
-    createdAt: newMessage.createdAt
+    createdAt: newMessage.createdAt,
+    messageType: messageType
   };
   conversation.lastMessageAt = newMessage.createdAt;
+  conversation.updatedAt = newMessage.createdAt;
 
-  const currentUnread = conversation.unreadCounts.get(receiverId) || 0;
-  conversation.unreadCounts.set(receiverId, currentUnread + 1);
-  conversation.unreadCounts.set(senderId, 0);
+  // Tăng unread count cho receiver
+  const receiverIdStr = receiverId.toString();
+  const currentUnread = conversation.unreadCounts.get(receiverIdStr) || 0;
+  conversation.unreadCounts.set(receiverIdStr, currentUnread + 1);
+
+  // Reset unread count cho sender
+  conversation.unreadCounts.set(senderId.toString(), 0);
+
+  // Cập nhật seenBy
+  conversation.seenBy = [new mongoose.Types.ObjectId(senderId)];
 
   await Promise.all([newMessage.save(), conversation.save()]);
-  await newMessage.populate('senderId', 'name pfp');
 
-  if (newMessage.sharedPostId) {
-    const sharedPostData = await Post.findById(newMessage.sharedPostId)
+  // Populate sender info
+  await newMessage.populate('senderId', 'name pfp');
+  await newMessage.populate('receiverId', 'name pfp');
+
+  if (sharedPostId) {
+    const sharedPostData = await Post.findById(sharedPostId)
       .populate('userId', 'name pfp')
       .populate('storyId')
       .populate({
@@ -188,6 +251,26 @@ const internalSendMessage = async (content, receiverId, senderId, messageType = 
       });
 
     newMessage.sharedPostId = sharedPostData;
+  }
+
+  // Emit conversation update event
+  const receiverSocketId = userSocketMap[receiverIdStr];
+  const senderSocketId = userSocketMap[senderId.toString()];
+
+  if (receiverSocketId) {
+    global.io.to(receiverSocketId).emit('updateConversationLastMessage', {
+      conversationId: conversation._id,
+      lastMessage: conversation.lastMessage,
+      unreadCount: currentUnread + 1
+    });
+  }
+
+  if (senderSocketId) {
+    global.io.to(senderSocketId).emit('updateConversationLastMessage', {
+      conversationId: conversation._id,
+      lastMessage: conversation.lastMessage,
+      unreadCount: 0
+    });
   }
 
   return newMessage;
