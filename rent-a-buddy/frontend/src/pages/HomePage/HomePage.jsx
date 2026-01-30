@@ -14,7 +14,10 @@ import {
   FaUser,
   FaCog,
   FaSignOutAlt,
-  FaChevronRight
+  FaChevronRight,
+  FaCommentDots,
+  FaBell,
+  FaSync
 } from 'react-icons/fa';
 
 function HomePage() {
@@ -24,6 +27,8 @@ function HomePage() {
   const [userData, setUserData] = useState(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [shouldHighlightPreference, setShouldHighlightPreference] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const preferenceSectionRef = useRef(null);
@@ -62,6 +67,35 @@ function HomePage() {
     window.addEventListener('storage', checkLoginStatus);
     return () => window.removeEventListener('storage', checkLoginStatus);
   }, [navigate, location]);
+
+  // Fetch unread messages count
+  useEffect(() => {
+    const fetchUnreadMessages = async () => {
+      if (!isLoggedIn || !userData?._id) return;
+      
+      try {
+        // Gọi API để lấy tổng số unread messages
+        const response = await fetch(`/api/conversations/unread-count?userId=${userData._id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setTotalUnreadMessages(data.totalUnread || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching unread messages:', error);
+      }
+    };
+    
+    fetchUnreadMessages();
+    
+    // Refresh mỗi 30 giây
+    const interval = setInterval(fetchUnreadMessages, 30000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn, userData]);
 
   // Click outside to close dropdown
   useEffect(() => {
@@ -130,6 +164,26 @@ function HomePage() {
 
   const toggleProfileDropdown = () => {
     setShowProfileDropdown(prev => !prev);
+  };
+
+  const handleRefreshData = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      // Logic refresh data ở đây
+      toast.info("Refreshing data...");
+      
+      // Simulate refresh delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast.success("Data refreshed!");
+    } catch (error) {
+      console.error("Refresh error:", error);
+      toast.error("Refresh failed!");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   // Navigation handlers
@@ -287,104 +341,235 @@ function HomePage() {
               Sign In
             </button>
           ) : (
-            <div className="profile-dropdown-container" ref={dropdownRef}>
-              <button className="profile-btn-header" onClick={toggleProfileDropdown}>
-                {userData?.pfp ? (
-                  <img
-                    src={userData.pfp}
-                    alt={userData.name}
-                    className="profile-avatar-small"
+            <>
+              {/* Action Buttons - Chỉ hiển thị khi đã login */}
+              <div className="header-actions">
+                <button
+                  className="refresh-btn"
+                  onClick={handleRefreshData}
+                  disabled={isRefreshing}
+                  title="Refresh dashboard"
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    color: '#667eea',
+                    marginRight: '10px'
+                  }}
+                >
+                  <FaSync
+                    className={isRefreshing ? 'spinning' : ''}
+                    style={{
+                      fontSize: '20px',
+                      width: '20px',
+                      height: '20px',
+                      animation: isRefreshing ? 'spin 1s linear infinite' : 'none'
+                    }}
                   />
-                ) : (
-                  <div className="profile-avatar-fallback">
-                    <FaUserCircle />
-                  </div>
-                )}
-                <span className="profile-name-header">{userData?.name?.split(' ')[0] || 'User'}</span>
-                <FaChevronRight className={`dropdown-arrow ${showProfileDropdown ? 'open' : ''}`} />
-              </button>
+                </button>
+                
+                <button
+                  className={`chat-btn ${totalUnreadMessages > 0 ? 'has-unread' : ''}`}
+                  onClick={() => handleViewAll('/home/chat')}
+                  title="Messages"
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    color: '#667eea',
+                    marginRight: '10px',
+                    position: 'relative'
+                  }}
+                >
+                  <FaCommentDots
+                    style={{
+                      fontSize: '20px',
+                      width: '20px',
+                      height: '20px'
+                    }}
+                  />
+                  {totalUnreadMessages > 0 && (
+                    <span className="chat-badge"
+                      style={{
+                        position: 'absolute',
+                        top: '-5px',
+                        right: '-5px',
+                        background: '#ff4757',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: '20px',
+                        height: '20px',
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+                    </span>
+                  )}
+                </button>
+                
+                <button
+                  className="notification-btn"
+                  onClick={() => handleViewAll('/notifications')}
+                  title="Notifications"
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    color: '#667eea',
+                    marginRight: '15px',
+                    position: 'relative'
+                  }}
+                >
+                  <FaBell
+                    style={{
+                      fontSize: '20px',
+                      width: '20px',
+                      height: '20px'
+                    }}
+                  />
+                  <span className="notification-badge"
+                    style={{
+                      position: 'absolute',
+                      top: '-5px',
+                      right: '-5px',
+                      background: '#ff4757',
+                      color: 'white',
+                      borderRadius: '50%',
+                      width: '20px',
+                      height: '20px',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    3
+                  </span>
+                </button>
+              </div>
 
-              {showProfileDropdown && (
-                <div className="profile-dropdown">
-                  <div className="dropdown-header">
-                    <div className="user-profile-summary">
-                      {userData?.pfp ? (
-                        <img
-                          src={userData.pfp}
-                          alt={userData.name}
-                          className="dropdown-avatar"
-                        />
-                      ) : (
-                        <div className="dropdown-avatar-fallback">
-                          <FaUserCircle />
-                        </div>
-                      )}
-                      <div className="user-details">
-                        <h4>{userData?.name}</h4>
-                        <p className="user-email">{userData?.email}</p>
-                        <div className="user-role">
-                          <span className={`role-badge ${userRole}`}>
-                            {userRole === 'tour-guide' ? 'Tour Guide' : 'Traveller'}
-                          </span>
+              <div className="profile-dropdown-container" ref={dropdownRef}>
+                <button className="profile-btn-header" onClick={toggleProfileDropdown}>
+                  {userData?.pfp ? (
+                    <img
+                      src={userData.pfp}
+                      alt={userData.name}
+                      className="profile-avatar-small"
+                    />
+                  ) : (
+                    <div className="profile-avatar-fallback">
+                      <FaUserCircle />
+                    </div>
+                  )}
+                  <span className="profile-name-header">{userData?.name?.split(' ')[0] || 'User'}</span>
+                  <FaChevronRight className={`dropdown-arrow ${showProfileDropdown ? 'open' : ''}`} />
+                </button>
+
+                {showProfileDropdown && (
+                  <div className="profile-dropdown">
+                    <div className="dropdown-header">
+                      <div className="user-profile-summary">
+                        {userData?.pfp ? (
+                          <img
+                            src={userData.pfp}
+                            alt={userData.name}
+                            className="dropdown-avatar"
+                          />
+                        ) : (
+                          <div className="dropdown-avatar-fallback">
+                            <FaUserCircle />
+                          </div>
+                        )}
+                        <div className="user-details">
+                          <h4>{userData?.name}</h4>
+                          <p className="user-email">{userData?.email}</p>
+                          <div className="user-role">
+                            <span className={`role-badge ${userRole}`}>
+                              {userRole === 'tour-guide' ? 'Tour Guide' : 'Traveller'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    <div className="dropdown-menu">
+                      <button className="dropdown-item" onClick={() => handleViewAll('/profile')}>
+                        <FaUserCircle />
+                        <span>My Profile</span>
+                      </button>
+                      
+                      {userRole === 'tour-guide' && (
+                        <>
+                          <button className="dropdown-item" onClick={() => handleQuickAction('editProfile')}>
+                            <FaEdit />
+                            <span>Edit Profile</span>
+                          </button>
+                          <button className="dropdown-item" onClick={() => handleQuickAction('viewEarnings')}>
+                            <FaWallet />
+                            <span>Earnings & Payouts</span>
+                          </button>
+                          <button className="dropdown-item" onClick={() => handleViewAll('/buddy/bookings')}>
+                            <FaCalendarDay />
+                            <span>My Bookings</span>
+                          </button>
+                          <button className="dropdown-item" onClick={() => handleViewAll('/buddy/tours')}>
+                            <FaUser />
+                            <span>My Tours</span>
+                          </button>
+                        </>
+                      )}
+                      
+                      {userRole === 'traveller' && (
+                        <>
+                          <button className="dropdown-item" onClick={() => handleViewAll('/my-bookings')}>
+                            <FaCalendarDay />
+                            <span>My Bookings</span>
+                          </button>
+                          <button className="dropdown-item" onClick={() => handleViewAll('/my-trips')}>
+                            <FaUser />
+                            <span>My Trips</span>
+                          </button>
+                        </>
+                      )}
+
+                      <div className="dropdown-divider"></div>
+
+                      <button className="dropdown-item" onClick={() => handleViewAll('/settings')}>
+                        <FaCog />
+                        <span>Settings</span>
+                      </button>
+                      <button className="dropdown-item logout" onClick={handleLogout}>
+                        <FaSignOutAlt />
+                        <span>Logout</span>
+                      </button>
+                    </div>
                   </div>
-
-                  <div className="dropdown-menu">
-                    <button className="dropdown-item" onClick={() => handleViewAll('/profile')}>
-                      <FaUserCircle />
-                      <span>My Profile</span>
-                    </button>
-                    
-                    {userRole === 'tour-guide' && (
-                      <>
-                        <button className="dropdown-item" onClick={() => handleQuickAction('editProfile')}>
-                          <FaEdit />
-                          <span>Edit Profile</span>
-                        </button>
-                        <button className="dropdown-item" onClick={() => handleQuickAction('viewEarnings')}>
-                          <FaWallet />
-                          <span>Earnings & Payouts</span>
-                        </button>
-                        <button className="dropdown-item" onClick={() => handleViewAll('/buddy/bookings')}>
-                          <FaCalendarDay />
-                          <span>My Bookings</span>
-                        </button>
-                        <button className="dropdown-item" onClick={() => handleViewAll('/buddy/tours')}>
-                          <FaUser />
-                          <span>My Tours</span>
-                        </button>
-                      </>
-                    )}
-                    
-                    {userRole === 'traveller' && (
-                      <>
-                        <button className="dropdown-item" onClick={() => handleViewAll('/my-bookings')}>
-                          <FaCalendarDay />
-                          <span>My Bookings</span>
-                        </button>
-                        <button className="dropdown-item" onClick={() => handleViewAll('/my-trips')}>
-                          <FaUser />
-                          <span>My Trips</span>
-                        </button>
-                      </>
-                    )}
-
-                    <div className="dropdown-divider"></div>
-
-                    <button className="dropdown-item" onClick={() => handleViewAll('/settings')}>
-                      <FaCog />
-                      <span>Settings</span>
-                    </button>
-                    <button className="dropdown-item logout" onClick={handleLogout}>
-                      <FaSignOutAlt />
-                      <span>Logout</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </>
           )}
         </nav>
       </header>
