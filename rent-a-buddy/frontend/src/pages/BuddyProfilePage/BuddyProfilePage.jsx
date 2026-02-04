@@ -279,48 +279,60 @@ const BuddyProfilePage = () => {
         if (!buddy || !buddy.relatedActivities || buddy.relatedActivities.length === 0) {
             return (
                 <div className="no-data-message">
-                    <span className="activity-icon">🎯</span>
+                    <span className="activity-icon">🏃‍♂️</span>
                     <p>No activities available</p>
                 </div>
             );
         }
 
+        console.log('Related activities data with icons:', buddy.relatedActivities); // Debug log
+
         return buddy.relatedActivities.map((activity, index) => {
+            // Kiểm tra nếu activity chỉ là ID string (chưa populate)
             if (typeof activity === 'string') {
+                console.warn(`Activity ${index} is string ID, not populated:`, activity);
                 return (
-                    <div key={activity || index} className="activity-item">
-                        <div className="activity-icon">🎯</div>
+                    <div key={`${activity}-${index}`} className="activity-item">
+                        <div className="activity-icon" style={{ backgroundColor: '#2563eb' }}>
+                            🏃‍♂️
+                        </div>
                         <div className="activity-info">
                             <div className="activity-name">Activity ID: {activity.substring(0, 8)}...</div>
+                            <div className="activity-description">Loading activity details...</div>
                             <div className="activity-category">Loading...</div>
                         </div>
                     </div>
                 );
             }
 
-            if (!activity || !activity.name) {
-                return (
-                    <div key={activity?._id || index} className="activity-item">
-                        <div className="activity-icon">🎯</div>
-                        <div className="activity-info">
-                            <div className="activity-name">Unknown Activity</div>
-                            <div className="activity-category">General</div>
-                        </div>
-                    </div>
-                );
-            }
+            // Activity đã được populate từ backend
+            const activityId = activity._id || `activity-${index}`;
+            const activityName = activity.name || 'Unknown Activity';
+            const activityDescription = activity.description || '';
+            const activityIcon = activity.icon || '🏃‍♂️';
+            const activityColor = activity.color || '#2563eb';
+            const activityCategory = activity.category || 'General';
 
             return (
-                <div key={activity._id} className="activity-item">
+                <div key={activityId} className="activity-item" title={activityDescription}>
                     <div
                         className="activity-icon"
-                        style={{ backgroundColor: activity.color || '#2563eb' }}
+                        style={{ backgroundColor: activityColor }}
                     >
-                        {activity.icon || '🎯'}
+                        {activityIcon}
                     </div>
                     <div className="activity-info">
-                        <div className="activity-name">{activity.name}</div>
-                        <div className="activity-category">{activity.category || 'General'}</div>
+                        <div className="activity-name">{activityName}</div>
+                        {activityDescription && (
+                            <div className="activity-description">
+                                {activityDescription.length > 60
+                                    ? `${activityDescription.substring(0, 60)}...`
+                                    : activityDescription}
+                            </div>
+                        )}
+                        <div className="activity-category">
+                            {activityCategory.charAt(0).toUpperCase() + activityCategory.slice(1)}
+                        </div>
                     </div>
                 </div>
             );
@@ -506,84 +518,6 @@ const BuddyProfilePage = () => {
 
                     {/* Right Column - Booking & Details */}
                     <div className="profile-right">
-                        {/* Booking Card */}
-                        {/* <div className="booking-card">
-                            <h3>Book {buddy.name}</h3>
-
-                            <div className="booking-form">
-                                <div className="form-group">
-                                    <label>
-                                        <Calendar size={16} />
-                                        Select Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={selectedDate}
-                                        onChange={(e) => setSelectedDate(e.target.value)}
-                                        min={new Date().toISOString().split('T')[0]}
-                                        className="date-input"
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label>
-                                        <Clock size={16} />
-                                        Select Time
-                                    </label>
-                                    <select
-                                        value={selectedTime}
-                                        onChange={(e) => setSelectedTime(e.target.value)}
-                                        className="time-select"
-                                    >
-                                        <option value="">Select time</option>
-                                        {generateTimeSlots().map(time => (
-                                            <option key={time} value={time}>{time}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="form-group">
-                                    <label>Duration (hours)</label>
-                                    <div className="duration-selector">
-                                        {[1, 2, 3, 4, 5, 6, 7, 8].map(hours => (
-                                            <button
-                                                key={hours}
-                                                className={`duration-btn ${bookingDuration === hours ? 'selected' : ''}`}
-                                                onClick={() => setBookingDuration(hours)}
-                                            >
-                                                {hours}h
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="price-summary">
-                                    <div className="price-row">
-                                        <span>${buddy.hourlyRate} × {bookingDuration} hours</span>
-                                        <span>${buddy.hourlyRate * bookingDuration}</span>
-                                    </div>
-                                    <div className="price-row total">
-                                        <span>Total</span>
-                                        <span>${calculateTotalPrice()}</span>
-                                    </div>
-                                </div>
-
-                                <button
-                                    className="book-now-btn"
-                                    onClick={handleBookNow}
-                                    disabled={!buddy.isAvailableNow}
-                                >
-                                    {buddy.isAvailableNow ? 'Book Now' : 'Not Available'}
-                                </button>
-
-                                {!buddy.isAvailableNow && (
-                                    <p className="not-available-text">
-                                        {buddy.name} is not available for booking at the moment.
-                                    </p>
-                                )}
-                            </div>
-                        </div> */}
-
                         {/* Activities Section */}
                         <div className="activities-section">
                             <h3>Available Activities ({buddy?.relatedActivities?.length || 0})</h3>

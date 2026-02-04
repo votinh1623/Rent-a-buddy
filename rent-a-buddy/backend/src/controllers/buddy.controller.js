@@ -5,106 +5,6 @@ import Destination from '../models/destination.model.js';
 import mongoose from 'mongoose';
 import Booking from '../models/booking.model.js';
 import Review from '../models/review.model.js';
-
-// Get current buddy profile (sử dụng req.user từ middleware auth)
-// export const getCurrentBuddyProfile = async (req, res) => {
-//   try {
-//     console.log('Getting current buddy profile for user:', req.user._id);
-
-//     const buddy = await User.findById(req.user._id)
-//       .select('-password -__v')
-//       .populate('relatedActivities', 'name')
-//       .populate('relatedDestination', 'name city')
-//       .populate('featuredReviews', 'rating comment');
-
-//     if (!buddy) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'User not found'
-//       });
-//     }
-
-//     if (buddy.role !== 'tour-guide') {
-//       return res.status(403).json({
-//         success: false,
-//         message: 'Access denied. User is not a tour guide'
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       data: buddy
-//     });
-
-//   } catch (error) {
-//     console.error('Error fetching buddy profile:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching buddy details',
-//       error: error.message
-//     });
-//   }
-// };
-
-
-// Get buddy by ID (public access)
-// export const getBuddyById = async (req, res) => {
-//   try {
-//     const { buddyId } = req.params;
-
-//     // Kiểm tra xem buddyId có phải là ObjectId hợp lệ không
-//     if (!mongoose.Types.ObjectId.isValid(buddyId)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Invalid buddy ID format'
-//       });
-//     }
-
-//     const buddy = await User.findById(buddyId)
-//       .select('-password -email -phoneNumber -verificationDocuments -__v')
-//       .populate('relatedActivities', 'name description')
-//       .populate('relatedDestination', 'name city coverImg')
-//       .populate('featuredReviews', 'rating comment createdAt')
-//       .lean();
-
-//     if (!buddy) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Buddy not found'
-//       });
-//     }
-
-//     if (buddy.role !== 'tour-guide') {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'User is not a tour guide'
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       data: buddy
-//     });
-
-//   } catch (error) {
-//     console.error('Error fetching buddy by ID:', error);
-
-//     // Xử lý CastError
-//     if (error.name === 'CastError') {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Invalid buddy ID format'
-//       });
-//     }
-
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching buddy details',
-//       error: error.message
-//     });
-//   }
-// };
-// Get buddy statistics dashboard
 export const getBuddyStats = async (req, res) => {
   try {
     console.log('Getting buddy stats for user:', req.user._id);
@@ -924,8 +824,8 @@ export const getBuddyById = async (req, res) => {
       role: 'tour-guide',
       isActive: true
     })
-      .populate('relatedActivities', 'name description price duration requirements')
-      .populate('relatedDestination', 'name description city country coverImg location')
+      .populate('relatedActivities', 'name description icon color category isPopular') // Thêm icon, color, category
+      .populate('relatedDestination', 'name description city country coverImg location isPopular')
       .select('-password -verificationDocuments');
 
     if (!buddy) {
@@ -939,7 +839,7 @@ export const getBuddyById = async (req, res) => {
     const isOwner = req.user && req.user._id.toString() === buddyId;
     const isAdmin = req.user && req.user.role === 'admin';
 
-    // Format response
+    // Format response với activities đã populate
     const responseData = {
       ...buddy.toObject(),
       rating: {
@@ -949,6 +849,15 @@ export const getBuddyById = async (req, res) => {
           '☆'.repeat(5 - Math.floor(buddy.rating?.average || 0))
       }
     };
+
+    // Đảm bảo activities có icon và color mặc định nếu không có
+    if (responseData.relatedActivities) {
+      responseData.relatedActivities = responseData.relatedActivities.map(activity => ({
+        ...activity,
+        icon: activity.icon || getDefaultIcon(activity.category),
+        color: activity.color || getDefaultColor(activity.category)
+      }));
+    }
 
     // Ẩn thông tin nhạy cảm nếu không phải chủ tài khoản hoặc admin
     if (!isOwner && !isAdmin) {
@@ -969,6 +878,53 @@ export const getBuddyById = async (req, res) => {
       error: error.message
     });
   }
+};
+
+// Helper functions để set default icon và color
+const getDefaultIcon = (category) => {
+  const defaultIcons = {
+    'adventure': '🧗',
+    'culture': '🎭',
+    'food': '🍜',
+    'nature': '🌿',
+    'sports': '⚽',
+    'nightlife': '🍻',
+    'shopping': '🛍️',
+    'photography': '📸',
+    'history': '🏛️',
+    'family': '👨‍👩‍👧‍👦',
+    'romantic': '💖',
+    'budget': '💰',
+    'luxury': '💎',
+    'wellness': '🧘',
+    'educational': '📚',
+    'default': '🏃‍♂️'
+  };
+
+  return defaultIcons[category] || defaultIcons.default;
+};
+
+const getDefaultColor = (category) => {
+  const defaultColors = {
+    'adventure': '#ef4444',
+    'culture': '#8b5cf6',
+    'food': '#f59e0b',
+    'nature': '#10b981',
+    'sports': '#ec4899',
+    'nightlife': '#6366f1',
+    'shopping': '#f97316',
+    'photography': '#3b82f6',
+    'history': '#dc2626',
+    'family': '#06b6d4',
+    'romantic': '#db2777',
+    'budget': '#64748b',
+    'luxury': '#fbbf24',
+    'wellness': '#14b8a6',
+    'educational': '#7c3aed',
+    'default': '#2563eb'
+  };
+
+  return defaultColors[category] || defaultColors.default;
 };
 
 // Tìm kiếm buddies theo destination và activity
