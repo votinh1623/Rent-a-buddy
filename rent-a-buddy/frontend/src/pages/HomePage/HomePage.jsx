@@ -6,6 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { logout } from '../../service/authService';
 import { toast } from 'react-toastify';
 import SelectByPreference from '../../components/SelectByPreference/SelectByPreference.jsx';
+import Footer from '../../components/Footer/Footer.jsx';
 import {
   FaUserCircle,
   FaEdit,
@@ -670,21 +671,7 @@ function HomePage() {
           </div>
         </section>
       </main>
-
-      {/* Footer */}
-      <footer className="footer">
-        <div className="footer-content">
-          <div className="footer-logo">Rent a buddy</div>
-          <p className="footer-tagline">Authentic travel experiences through local connections</p>
-          <div className="footer-links">
-            <NavLink to="/about">About us</NavLink>
-            <NavLink to="/safety">Safety</NavLink>
-            <NavLink to="/help">Help Center</NavLink>
-            <NavLink to="/terms">Terms</NavLink>
-            <NavLink to="/privacy">Privacy</NavLink>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

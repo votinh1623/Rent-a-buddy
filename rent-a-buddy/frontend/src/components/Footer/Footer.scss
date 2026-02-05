@@ -1,0 +1,129 @@
+// components/Footer/Footer.scss
+.footer {
+  background: #0a0a0f;
+  border-top: 1px solid rgba(0, 150, 255, 0.15);
+  padding: 2rem 0;
+  margin-top: auto;
+
+  &-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      gap: 2rem;
+    }
+  }
+
+  &-logo {
+    .logo-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1e73eb;
+      letter-spacing: -0.5px;
+    }
+  }
+
+  &-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.5rem;
+
+    @media (min-width: 768px) {
+      gap: 2rem;
+    }
+  }
+
+  &-link {
+    color: #90e0ef;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+    position: relative;
+    padding: 0.25rem 0;
+
+    &:hover {
+      color: #00b4d8;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: #00b4d8;
+      transition: width 0.3s ease;
+    }
+
+    &:hover::after {
+      width: 100%;
+    }
+  }
+
+  &-copyright {
+    color: #6082b6;
+    font-size: 0.85rem;
+    text-align: center;
+
+    @media (min-width: 768px) {
+      text-align: right;
+    }
+  }
+}
+
+// Mobile responsive
+@media (max-width: 767px) {
+  .footer {
+    padding: 1.5rem 0;
+
+    &-container {
+      gap: 1rem;
+    }
+
+    &-links {
+      gap: 1rem;
+    }
+
+    &-link {
+      font-size: 0.85rem;
+    }
+
+    &-copyright {
+      font-size: 0.8rem;
+    }
+  }
+}
+.footer.light-theme {
+  background: white;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  
+  &-logo .logo-text {
+    color: #006064;
+  }
+  
+  &-link {
+    color: #333;
+    
+    &:hover {
+      color: #0077b6;
+    }
+    
+    &::after {
+      background: #0077b6;
+    }
+  }
+  
+  &-copyright {
+    color: #666;
+  }
+}

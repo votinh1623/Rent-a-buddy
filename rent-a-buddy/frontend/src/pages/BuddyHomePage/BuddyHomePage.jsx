@@ -40,6 +40,7 @@ import {
 } from 'react-icons/fa';
 // import { FaUser } from 'react-icons/fa';
 import './BuddyHomePage.scss';
+import Footer from '../../components/Footer/Footer.jsx';
 
 // API service
 import api from '../../api.js';
@@ -1157,6 +1158,7 @@ function BuddyHomePage() {
           )}
         </div>
       </div>
+      <Footer light={true} />
     </div>
   );
 }
